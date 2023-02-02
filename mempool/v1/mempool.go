@@ -19,7 +19,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// Test, remove this.
 var _ mempool.Mempool = (*TxMempool)(nil)
 
 // TxMempoolOption sets an optional parameter on the TxMempool.

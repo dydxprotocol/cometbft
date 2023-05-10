@@ -1,5 +1,6 @@
 package clob
 
+//nolint:all // Match variable formats in dydx v4 repo
 const (
 	OrderIdFlags_ShortTerm   = uint32(0)
 	OrderIdFlags_Conditional = uint32(32)

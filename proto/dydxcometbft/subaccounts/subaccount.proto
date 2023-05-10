@@ -1,11 +1,11 @@
 syntax = "proto3";
-package dydxprotocol.subaccounts;
+package dydxcometbft.subaccounts;
 
 import "cosmos_proto/cosmos.proto";
-import "dydxprotocol/subaccounts/asset_position.proto";
-import "dydxprotocol/subaccounts/perpetual_position.proto";
+import "dydxcometbft/subaccounts/asset_position.proto";
+import "dydxcometbft/subaccounts/perpetual_position.proto";
 
-option go_package = "github.com/cometbft/cometbft/proto/dydxprotocol/subaccounts";
+option go_package = "github.com/cometbft/cometbft/proto/dydxcometbft/subaccounts";
 
 // SubaccountId defines a unique identifier for a Subaccount.
 message SubaccountId {

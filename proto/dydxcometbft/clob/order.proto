@@ -1,10 +1,10 @@
 syntax = "proto3";
-package dydxprotocol.clob;
+package dydxcometbft.clob;
 
 import "gogoproto/gogo.proto";
-import "dydxprotocol/subaccounts/subaccount.proto";
+import "dydxcometbft/subaccounts/subaccount.proto";
 
-option go_package = "github.com/cometbft/cometbft/proto/dydxprotocol/clob";
+option go_package = "github.com/cometbft/cometbft/proto/dydxcometbft/clob";
 
 // OrderId refers to a single order belonging to a Subaccount.
 message OrderId {
@@ -13,7 +13,7 @@ message OrderId {
   // generated as a value instead of a pointer. This is because the `OrderId`
   // proto is used as a key within maps, and map comparisons will compare
   // pointers for equality (when the desired behavior is to compare the values).
-  dydxprotocol.subaccounts.SubaccountId subaccount_id = 1
+  dydxcometbft.subaccounts.SubaccountId subaccount_id = 1
       [ (gogoproto.nullable) = false ];
 
   // The client ID of this order, unique with respect to the specific

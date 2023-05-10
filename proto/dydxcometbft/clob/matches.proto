@@ -1,11 +1,11 @@
 syntax = "proto3";
-package dydxprotocol.clob;
+package dydxcometbft.clob;
 
 import "gogoproto/gogo.proto";
-import "dydxprotocol/subaccounts/subaccount.proto";
-import "dydxprotocol/clob/order.proto";
+import "dydxcometbft/subaccounts/subaccount.proto";
+import "dydxcometbft/clob/order.proto";
 
-option go_package = "github.com/cometbft/cometbft/proto/dydxprotocol/clob";
+option go_package = "github.com/cometbft/cometbft/proto/dydxcometbft/clob";
 
 // ClobMatch represents an operations queue entry around all different types
 // of matches, specifically regular matches, liquidation matches, and
@@ -24,13 +24,13 @@ message MakerFill {
   // The filled amount of the matched maker order, in base quantums.
   uint64 fill_amount = 1;
   // The `OrderId` of the matched maker order.
-  dydxprotocol.clob.OrderId maker_order_id = 2 [ (gogoproto.nullable) = false ];
+  dydxcometbft.clob.OrderId maker_order_id = 2 [ (gogoproto.nullable) = false ];
 }
 
 // MatchOrders is an injected message used for matching orders.
 message MatchOrders {
   // The `OrderId` of the taker order.
-  dydxprotocol.clob.OrderId taker_order_id = 1 [ (gogoproto.nullable) = false ];
+  dydxcometbft.clob.OrderId taker_order_id = 1 [ (gogoproto.nullable) = false ];
   // An ordered list of fills created by this taker order.
   repeated MakerFill fills = 2 [ (gogoproto.nullable) = false ];
   // The `OrderHash` of the taker order. Used to differentiate replacement
@@ -44,7 +44,7 @@ message MatchOrders {
 // subaccount.
 message MatchPerpetualLiquidation {
   // ID of the subaccount that was liquidated.
-  dydxprotocol.subaccounts.SubaccountId liquidated = 1
+  dydxcometbft.subaccounts.SubaccountId liquidated = 1
       [ (gogoproto.nullable) = false ];
   // The ID of the clob pair involved in the liquidation.
   uint32 clob_pair_id = 2;
@@ -62,14 +62,14 @@ message MatchPerpetualLiquidation {
 // subaccount.
 message MatchPerpetualDeleveraging {
   // ID of the subaccount that was liquidated.
-  dydxprotocol.subaccounts.SubaccountId liquidated = 1
+  dydxcometbft.subaccounts.SubaccountId liquidated = 1
       [ (gogoproto.nullable) = false ];
   // The ID of the perpetual that was liquidated.
   uint32 perpetual_id = 2;
   // Fill represents a fill between the liquidated and deleveraged subaccount.
   message Fill {
     // ID of the subaccount that was deleveraged.
-    dydxprotocol.subaccounts.SubaccountId deleveraged = 1
+    dydxcometbft.subaccounts.SubaccountId deleveraged = 1
         [ (gogoproto.nullable) = false ];
     // The amount filled between the liquidated and deleveraged position, in
     // base quantums.

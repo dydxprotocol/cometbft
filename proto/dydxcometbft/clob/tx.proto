@@ -1,14 +1,14 @@
 syntax = "proto3";
-package dydxprotocol.clob;
+package dydxcometbft.clob;
 
 import "gogoproto/gogo.proto";
 import "cosmos_proto/cosmos.proto";
-import "dydxprotocol/clob/order.proto";
-import "dydxprotocol/clob/matches.proto";
+import "dydxcometbft/clob/order.proto";
+import "dydxcometbft/clob/matches.proto";
 
 // this line is used by starport scaffolding # proto/tx/import
 
-option go_package = "github.com/cometbft/cometbft/proto/dydxprotocol/clob";
+option go_package = "github.com/cometbft/cometbft/proto/dydxcometbft/clob";
 
 // Msg defines the Msg service.
 service Msg {

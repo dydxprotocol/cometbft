@@ -2,7 +2,7 @@ package mempool
 
 import (
 	"github.com/cometbft/cometbft/libs/log"
-	"github.com/cometbft/cometbft/proto/dydxprotocol/clob"
+	"github.com/cometbft/cometbft/proto/dydxcometbft/clob"
 	"github.com/cometbft/cometbft/types"
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 )

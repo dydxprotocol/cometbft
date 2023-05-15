@@ -1,5 +1,7 @@
 package clob
 
+import "github.com/gogo/protobuf/proto"
+
 //nolint:stylecheck,revive // Match variable formats in dydx v4 repo
 const (
 	OrderIdFlags_ShortTerm   = uint32(0)
@@ -36,4 +38,9 @@ func (o *OrderId) IsLongTermOrder() bool {
 // and conditional orders and false for Short-Term orders.
 func (o *OrderId) IsStatefulOrder() bool {
 	return o.IsLongTermOrder() || o.IsConditionalOrder()
+}
+
+// GetOrderTextString returns the JSON representation of this order.
+func (o *Order) GetOrderTextString() string {
+	return proto.MarshalTextString(o)
 }

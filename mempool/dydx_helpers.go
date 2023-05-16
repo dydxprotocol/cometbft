@@ -28,12 +28,11 @@ func IsShortTermClobOrderTransaction(
 			// In the case of an unmarshalling error, panic.
 			// Chances are, the protos are out of sync with the dydx v4 repo.
 			if err != nil {
-				panic("Failed to unmarshal MsgPlaceOrder from Cosmos transaction.")
+				panic(
+					"Failed to unmarshal MsgPlaceOrder from Cosmos transaction in CometBFT mempool.",
+				)
 			}
-			if msgPlaceOrder.Order.OrderId.IsShortTermOrder() {
-				return true
-			}
-			return false
+			return msgPlaceOrder.Order.OrderId.IsShortTermOrder()
 		}
 		if cosmosTx.Body.Messages[0].TypeUrl == "/dydxprotocol.clob.MsgCancelOrder" {
 			msgCancelOrder := &clob.MsgCancelOrder{}
@@ -43,10 +42,7 @@ func IsShortTermClobOrderTransaction(
 			if err != nil {
 				panic("Failed to unmarshal MsgCancelOrder from Cosmos transaction.")
 			}
-			if msgCancelOrder.OrderId.IsShortTermOrder() {
-				return true
-			}
-			return false
+			return msgCancelOrder.OrderId.IsShortTermOrder()
 		}
 	}
 

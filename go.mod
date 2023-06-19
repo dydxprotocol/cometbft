@@ -33,7 +33,7 @@ require (
 	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	golang.org/x/crypto v0.6.0
 	golang.org/x/net v0.7.0
 	google.golang.org/grpc v1.53.0
@@ -49,9 +49,11 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/btcsuite/btcd/btcutil v1.1.2
-	github.com/cometbft/cometbft-db v0.7.0
+	github.com/cometbft/cometbft-db v0.8.0
+	github.com/cosmos/cosmos-proto v1.0.0-beta.2
 	github.com/cosmos/gogoproto v1.4.6
 	github.com/go-git/go-git/v5 v5.5.2
+	github.com/gogo/protobuf v1.3.2
 	github.com/vektra/mockery/v2 v2.14.0
 	gonum.org/v1/gonum v0.8.2
 	google.golang.org/protobuf v1.28.2-0.20230208135220-49eaa78c6c9c
@@ -96,7 +98,6 @@ require (
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/containerd/typeurl v1.0.2 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
-	github.com/cosmos/cosmos-proto v1.0.0-beta.2 // indirect
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/curioswitch/go-reassign v0.2.0 // indirect
@@ -115,9 +116,6 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/esimonov/ifshort v1.0.4 // indirect
 	github.com/ettle/strcase v0.1.1 // indirect
-	github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c // indirect
-	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
-	github.com/facebookgo/subset v0.0.0-20200203212716-c811ad88dec4 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/firefart/nonamedreturns v1.0.4 // indirect
@@ -139,7 +137,6 @@ require (
 	github.com/go-xmlfmt/xmlfmt v0.0.0-20191208150333-d5b6f63a941b // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -192,6 +189,7 @@ require (
 	github.com/ldez/gomoddirectives v0.2.3 // indirect
 	github.com/ldez/tagliatelle v0.3.1 // indirect
 	github.com/leonklingele/grouper v1.1.0 // indirect
+	github.com/linxGnu/grocksdb v1.7.16 // indirect
 	github.com/lufeee/execinquery v1.2.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/maratori/testableexamples v1.0.0 // indirect
@@ -262,7 +260,6 @@ require (
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/tdakkota/asciicheck v0.1.1 // indirect
-	github.com/tecbot/gorocksdb v0.0.0-20191217155057-f0fad39f321c // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tetafro/godot v1.4.11 // indirect
 	github.com/timakin/bodyclose v0.0.0-20210704033933-f49887972144 // indirect
@@ -276,7 +273,7 @@ require (
 	github.com/yagipy/maintidx v1.0.0 // indirect
 	github.com/yeya24/promlinter v0.2.0 // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
-	go.etcd.io/bbolt v1.3.6 // indirect
+	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.36.3 // indirect
 	go.opentelemetry.io/otel v1.11.0 // indirect

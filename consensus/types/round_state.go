@@ -80,6 +80,9 @@ type RoundState struct {
 	LockedBlock        *types.Block        `json:"locked_block"`
 	LockedBlockParts   *types.PartSet      `json:"locked_block_parts"`
 
+	// Set of block hashes already prevoted by this validator in this round
+	PrevotedHashes []string `json:"prevoted_hashes"`
+
 	// The variables below starting with "Valid..." derive their name from
 	// the algorithm presented in this paper:
 	// [The latest gossip on BFT consensus](https://arxiv.org/abs/1807.04938).

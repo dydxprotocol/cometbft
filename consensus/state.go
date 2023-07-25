@@ -15,6 +15,7 @@ import (
 	cfg "github.com/cometbft/cometbft/config"
 	cstypes "github.com/cometbft/cometbft/consensus/types"
 	"github.com/cometbft/cometbft/crypto"
+	cmtbytes "github.com/cometbft/cometbft/libs/bytes"
 	cmtevents "github.com/cometbft/cometbft/libs/events"
 	"github.com/cometbft/cometbft/libs/fail"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -1300,16 +1301,23 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 		we request the Application, via `ProcessProposal` ABCI call, to confirm that the block is
 		valid. If the Application does not accept the block, consensus prevotes `nil`.
 
+		If the application has previously validated the block, do not ask the application to verify it
+		again. Insist that the value is still valid.
+
 		WARNING: misuse of block rejection by the Application can seriously compromise
 		the liveness properties of consensus.
 		Please see `PrepareProosal`-`ProcessProposal` coherence and determinism properties
 		in the ABCI++ specification.
 	*/
-	isAppValid, err := cs.blockExec.ProcessProposal(cs.ProposalBlock, cs.state)
-	if err != nil {
-		panic(fmt.Sprintf(
-			"state machine returned an error (%v) when calling ProcessProposal", err,
-		))
+	proposalBlockHash := cs.ProposalBlock.Hash()
+	isAppValid := cs.hasPrevotedHash(proposalBlockHash)
+	if !isAppValid {
+		isAppValid, err = cs.blockExec.ProcessProposal(cs.ProposalBlock, cs.state)
+		if err != nil {
+			panic(fmt.Sprintf(
+				"state machine returned an error (%v) when calling ProcessProposal", err,
+			))
+		}
 	}
 	cs.metrics.MarkProposalProcessed(isAppValid)
 
@@ -1325,6 +1333,7 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 	// NOTE: the proposal signature is validated when it is received,
 	// and the proposal block parts are validated as they are received (against the merkle hash in the proposal)
 	logger.Debug("prevote step: ProposalBlock is valid")
+	cs.PrevotedHashes = append(cs.PrevotedHashes, proposalBlockHash.String())
 	cs.signAddVote(cmtproto.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header())
 }
 
@@ -2438,4 +2447,14 @@ func repairWalFile(src, dst string) error {
 	}
 
 	return nil
+}
+
+func (cs *State) hasPrevotedHash(b cmtbytes.HexBytes) bool {
+	hash := b.String()
+	for _, h := range cs.PrevotedHashes {
+		if hash == h {
+			return true
+		}
+	}
+	return false
 }

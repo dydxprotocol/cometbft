@@ -1333,8 +1333,8 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 	// NOTE: the proposal signature is validated when it is received,
 	// and the proposal block parts are validated as they are received (against the merkle hash in the proposal)
 	logger.Debug("prevote step: ProposalBlock is valid")
-	cs.PrevotedHashes = append(cs.PrevotedHashes, proposalBlockHash.String())
-	cs.signAddVote(cmtproto.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header())
+	cs.addPrevotedHash(proposalBlockHash)
+	cs.signAddVote(cmtproto.PrevoteType, proposalBlockHash, cs.ProposalBlockParts.Header())
 }
 
 // Enter: any +2/3 prevotes at next round.
@@ -2128,6 +2128,12 @@ func (cs *State) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error
 		prevotes := cs.Votes.Prevotes(vote.Round)
 		cs.Logger.Debug("added vote to prevote", "vote", vote, "prevotes", prevotes.StringShort())
 
+		// If prevote is from this validator, then update set of prevoted blocks.
+		if cs.privValidatorPubKey != nil &&
+			bytes.Equal(vote.ValidatorAddress, cs.privValidatorPubKey.Address()) {
+			cs.addPrevotedHash(vote.BlockID.Hash)
+		}
+
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
 			// There was a polka!
@@ -2457,4 +2463,11 @@ func (cs *State) hasPrevotedHash(b cmtbytes.HexBytes) bool {
 		}
 	}
 	return false
+}
+
+func (cs *State) addPrevotedHash(b cmtbytes.HexBytes) {
+	if cs.hasPrevotedHash(b) {
+		return
+	}
+	cs.PrevotedHashes = append(cs.PrevotedHashes, b.String())
 }

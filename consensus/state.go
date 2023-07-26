@@ -673,6 +673,7 @@ func (cs *State) updateToState(state sm.State) {
 	cs.LockedRound = -1
 	cs.LockedBlock = nil
 	cs.LockedBlockParts = nil
+	cs.PrevotedHashes = make([]string, 0)
 	cs.ValidRound = -1
 	cs.ValidBlock = nil
 	cs.ValidBlockParts = nil

@@ -1301,8 +1301,7 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 		we request the Application, via `ProcessProposal` ABCI call, to confirm that the block is
 		valid. If the Application does not accept the block, consensus prevotes `nil`.
 
-		If the application has previously validated the block, do not ask the application to verify it
-		again. Insist that the value is still valid.
+		If the Application has previously prevoted the block, continue to prevote on the block.
 
 		WARNING: misuse of block rejection by the Application can seriously compromise
 		the liveness properties of consensus.

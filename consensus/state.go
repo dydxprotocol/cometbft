@@ -1285,10 +1285,10 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 		return
 	}
 
-	// If it is known that this block is valid, prevote it
-	// ProposalBlock already has a nil check above
-	if cs.ValidBlock != nil && bytes.Equal(cs.ValidBlock.Hash(), cs.ProposalBlock.Hash()) {
-		logger.Debug("prevote step: ProposalBlock is equal to ValidBlock")
+	// If it is known that the proposed block is valid, prevote it.
+	// ProposalBlock is non-nil given the check above.
+	if cs.ValidBlock.HashesTo(cs.ProposalBlock.Hash()) {
+		logger.Debug("prevote step: ProposalBlock is equal to ValidBlock; prevoting block")
 		cs.signAddVote(cmtproto.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header())
 		return
 	}

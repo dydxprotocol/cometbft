@@ -1271,7 +1271,8 @@ func (cs *State) enterPrevote(height int64, round int32) {
 func (cs *State) defaultDoPrevote(height int64, round int32) {
 	logger := cs.Logger.With("height", height, "round", round)
 
-	// If a block is locked, prevote that. TODO(CORE-434): Incorporate fix from Proposer-based Timestamp.
+	// If a block is locked, prevote that.
+	// TODO(CORE-434): Incorporate fix from Proposer-based Timestamp.
 	if cs.LockedBlock != nil {
 		logger.Debug("prevote step; already locked on a block; prevoting locked block")
 		cs.signAddVote(cmtproto.PrevoteType, cs.LockedBlock.Hash(), cs.LockedBlockParts.Header())
@@ -1315,6 +1316,8 @@ func (cs *State) defaultDoPrevote(height int64, round int32) {
 		if ok && cs.ProposalBlock.HashesTo(blockID.Hash) {
 			// Validate the proof-of-lock round is at least as new as the possible locked round.
 			// (vr >= 0, vr > round_p, 2f+1 prevotes at round vr, lockedRound_p <= vr) execute 30.
+			// Note we skipped the `valid(v)`` check, since at POLRound we've witnessed 2/3+ prevotes for `v`.
+			// This means 1/3+ honest validators have accepted the block.
 			if cs.Proposal.POLRound >= cs.LockedRound {
 				logger.Debug("prevote step: ProposalBlock POLRound >= LockedRound; prevoting the block")
 				cs.signAddVote(cmtproto.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header())

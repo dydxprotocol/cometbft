@@ -510,13 +510,6 @@ func ensureNoNewRoundStep(stepCh <-chan cmtpubsub.Message) {
 		"We should be stuck waiting, not receiving NewRoundStep event")
 }
 
-func ensureNoNewUnlock(unlockCh <-chan cmtpubsub.Message) {
-	ensureNoNewEvent(
-		unlockCh,
-		ensureTimeout,
-		"We should be stuck waiting, not receiving Unlock event")
-}
-
 func ensureNoNewTimeout(stepCh <-chan cmtpubsub.Message, timeout int64) {
 	timeoutDuration := time.Duration(timeout*10) * time.Nanosecond
 	ensureNoNewEvent(

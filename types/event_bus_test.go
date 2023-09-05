@@ -323,7 +323,7 @@ func TestEventBusPublish(t *testing.T) {
 		}
 	})
 
-	const numEventsExpected = 14
+	const numEventsExpected = 13
 
 	sub, err := eventBus.Subscribe(context.Background(), "test", cmtquery.Empty{}, numEventsExpected)
 	require.NoError(t, err)

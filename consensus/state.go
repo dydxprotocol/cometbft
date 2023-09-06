@@ -996,7 +996,7 @@ func (cs *State) enterNewRound(height int64, round int32) {
 		logger.Debug("need to set a buffer and log message here for sanity", "start_time", cs.StartTime, "now", now)
 	}
 
-	logger.Debug("entering new round", "current", log.NewLazySprintf("%v/%v/%v", cs.Height, cs.Round, cs.Step))
+	prevHeight, prevRound, prevStep := cs.Height, cs.Round, cs.Step
 
 	// increment validators if necessary
 	validators := cs.Validators
@@ -1010,16 +1010,20 @@ func (cs *State) enterNewRound(height int64, round int32) {
 	// but we fire an event, so update the round step first
 	cs.updateRoundStep(round, cstypes.RoundStepNewRound)
 	cs.Validators = validators
-	if round == 0 {
-		// We've already reset these upon new height,
-		// and meanwhile we might have received a proposal
-		// for round 0.
-	} else {
-		logger.Debug("resetting proposal info")
+	// If round == 0, we've already reset these upon new height, and meanwhile
+	// we might have received a proposal for round 0.
+	propAddress := validators.GetProposer().PubKey.Address()
+	if round != 0 {
+		logger.Info("resetting proposal info", "proposer", propAddress)
 		cs.Proposal = nil
 		cs.ProposalBlock = nil
 		cs.ProposalBlockParts = nil
 	}
+
+	logger.Debug("entering new round",
+		"previous", log.NewLazySprintf("%v/%v/%v", prevHeight, prevRound, prevStep),
+		"proposer", propAddress,
+	)
 
 	cs.Votes.SetRound(cmtmath.SafeAddInt32(round, 1)) // also track next round (round+1) to allow round-skipping
 	cs.TriggeredTimeoutPrecommit = false
@@ -1579,7 +1583,7 @@ func (cs *State) enterCommit(height int64, commitRound int32) {
 	}()
 
 	blockID, ok := cs.Votes.Precommits(commitRound).TwoThirdsMajority()
-	if !ok {
+	if !ok || blockID.IsNil() {
 		panic("RunActionCommit() expects +2/3 precommits")
 	}
 
@@ -1904,7 +1908,8 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 
 	p := proposal.ToProto()
 	// Verify signature
-	if !cs.Validators.GetProposer().PubKey.VerifySignature(
+	pubKey := cs.Validators.GetProposer().PubKey
+	if !pubKey.VerifySignature(
 		types.ProposalSignBytes(cs.state.ChainID, p), proposal.Signature,
 	) {
 		return ErrInvalidProposalSignature
@@ -1919,7 +1924,7 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.BlockID.PartSetHeader)
 	}
 
-	cs.Logger.Info("received proposal", "proposal", proposal)
+	cs.Logger.Info("received proposal", "proposal", proposal, "proposer", pubKey.Address())
 	return nil
 }
 

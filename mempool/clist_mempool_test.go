@@ -754,7 +754,7 @@ func TestMempoolConcurrentUpdateAndReceiveCheckTxResponse(t *testing.T) {
 		go func(h int) {
 			defer wg.Done()
 
-			err := mp.Update(int64(h), []types.Tx{tx}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+			err := mp.Update(int64(h), time.UnixMilli(1), []types.Tx{tx}, abciResponses(1, abci.CodeTypeOK), nil, nil)
 			require.NoError(t, err)
 			require.Equal(t, int64(h), mp.height.Load(), "height mismatch")
 		}(h)
@@ -798,7 +798,7 @@ func TestMempoolNotifyTxsAvailable(t *testing.T) {
 	require.Empty(t, mp.TxsAvailable())
 
 	// Updating the pool will remove the tx and set the variable to false
-	err := mp.Update(1, []types.Tx{tx}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+	err := mp.Update(1, time.UnixMilli(1), []types.Tx{tx}, abciResponses(1, abci.CodeTypeOK), nil, nil)
 	require.NoError(t, err)
 	require.Zero(t, mp.Size())
 	require.False(t, mp.notifiedTxsAvailable.Load())

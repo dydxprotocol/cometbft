@@ -2761,6 +2761,7 @@ func (n *fakeTxNotifier) Notify() {
 func TestStartNextHeightCorrectlyAfterTimeout(t *testing.T) {
 	config.Consensus.SkipTimeoutCommit = false
 	cs1, vss := randState(4)
+	cs1.state.NextBlockDelay = 10 * time.Millisecond
 	cs1.txNotifier = &fakeTxNotifier{ch: make(chan struct{})}
 
 	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
@@ -2825,6 +2826,7 @@ func TestResetTimeoutPrecommitUponNewHeight(t *testing.T) {
 
 	config.Consensus.SkipTimeoutCommit = false
 	cs1, vss := randState(4)
+	cs1.state.NextBlockDelay = 10 * time.Millisecond
 
 	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
 	height, round := cs1.Height, cs1.Round

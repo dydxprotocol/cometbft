@@ -637,9 +637,9 @@ func TestReactorWithTimeoutCommit(t *testing.T) {
 	N := 4
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_with_timeout_commit_test", newMockTickerFunc(false), newKVStore)
 	defer cleanup()
-	// override default SkipTimeoutCommit == true for tests
+	// override default NextBlockDelay == 0 for tests
 	for i := 0; i < N; i++ {
-		css[i].config.SkipTimeoutCommit = false
+		css[i].state.NextBlockDelay = 1 * time.Second
 	}
 
 	reactors, blocksSubs, eventBuses := startConsensusNet(t, css, N-1)

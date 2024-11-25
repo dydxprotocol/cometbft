@@ -277,7 +277,7 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.RequestFinali
 				},
 			},
 		},
-		NextBlockDelay: 1 * time.Second,
+		NextBlockDelay: 0, // default back to using `timeout_commit` in tests.
 	}, nil
 }
 

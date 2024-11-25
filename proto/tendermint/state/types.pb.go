@@ -12,6 +12,7 @@ import (
 	proto "github.com/cosmos/gogoproto/proto"
 	_ "github.com/cosmos/gogoproto/types"
 	github_com_cosmos_gogoproto_types "github.com/cosmos/gogoproto/types"
+	_ "github.com/golang/protobuf/ptypes/duration"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -445,6 +446,9 @@ type State struct {
 	LastResultsHash []byte `protobuf:"bytes,12,opt,name=last_results_hash,json=lastResultsHash,proto3" json:"last_results_hash,omitempty"`
 	// the latest AppHash we've received from calling abci.Commit()
 	AppHash []byte `protobuf:"bytes,13,opt,name=app_hash,json=appHash,proto3" json:"app_hash,omitempty"`
+	// delay between the time when this block is committed and the next height is started.
+	// previously `timeout_commit` in config.toml
+	NextBlockDelay time.Duration `protobuf:"bytes,15,opt,name=next_block_delay,json=nextBlockDelay,proto3,stdduration" json:"next_block_delay"`
 }
 
 func (m *State) Reset()         { *m = State{} }
@@ -576,6 +580,13 @@ func (m *State) GetAppHash() []byte {
 		return m.AppHash
 	}
 	return nil
+}
+
+func (m *State) GetNextBlockDelay() time.Duration {
+	if m != nil {
+		return m.NextBlockDelay
+	}
+	return 0
 }
 
 func init() {
@@ -1007,6 +1018,14 @@ func (m *State) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	n9, err9 := github_com_cosmos_gogoproto_types.StdDurationMarshalTo(m.NextBlockDelay, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdDuration(m.NextBlockDelay):])
+	if err9 != nil {
+		return 0, err9
+	}
+	i -= n9
+	i = encodeVarintTypes(dAtA, i, uint64(n9))
+	i--
+	dAtA[i] = 0x7a
 	if m.InitialHeight != 0 {
 		i = encodeVarintTypes(dAtA, i, uint64(m.InitialHeight))
 		i--
@@ -1082,12 +1101,12 @@ func (m *State) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x32
 	}
-	n13, err13 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.LastBlockTime, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.LastBlockTime):])
-	if err13 != nil {
-		return 0, err13
+	n14, err14 := github_com_cosmos_gogoproto_types.StdTimeMarshalTo(m.LastBlockTime, dAtA[i-github_com_cosmos_gogoproto_types.SizeOfStdTime(m.LastBlockTime):])
+	if err14 != nil {
+		return 0, err14
 	}
-	i -= n13
-	i = encodeVarintTypes(dAtA, i, uint64(n13))
+	i -= n14
+	i = encodeVarintTypes(dAtA, i, uint64(n14))
 	i--
 	dAtA[i] = 0x2a
 	{
@@ -1314,6 +1333,8 @@ func (m *State) Size() (n int) {
 	if m.InitialHeight != 0 {
 		n += 1 + sovTypes(uint64(m.InitialHeight))
 	}
+	l = github_com_cosmos_gogoproto_types.SizeOfStdDuration(m.NextBlockDelay)
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -2625,6 +2646,39 @@ func (m *State) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NextBlockDelay", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := github_com_cosmos_gogoproto_types.StdDurationUnmarshal(&m.NextBlockDelay, dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])

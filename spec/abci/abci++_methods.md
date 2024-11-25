@@ -614,13 +614,14 @@ message for round _r_, height _h_ from validator _q_ (_q_ &ne; _p_):
 
 * **Response**:
 
-    | Name                    | Type                                              | Description                                                                      | Field Number | Deterministic |
-    |-------------------------|---------------------------------------------------|----------------------------------------------------------------------------------|--------------|---------------|
-    | events                  | repeated [Event](abci++_basic_concepts.md#events) | Type & Key-Value events for indexing                                             | 1            | No            |
-    | tx_results              | repeated [ExecTxResult](#exectxresult)            | List of structures containing the data resulting from executing the transactions | 2            | Yes           |
-    | validator_updates       | repeated [ValidatorUpdate](#validatorupdate)      | Changes to validator set (set voting power to 0 to remove).                      | 3            | Yes           |
-    | consensus_param_updates | [ConsensusParams](#consensusparams)               | Changes to gas, size, and other consensus-related parameters.                    | 4            | Yes           |
-    | app_hash                | bytes                                             | The Merkle root hash of the application state.                                   | 5            | Yes           |
+    | Name                    | Type                                              | Description                                                                         | Field Number | Deterministic |
+    |-------------------------|---------------------------------------------------|-------------------------------------------------------------------------------------|--------------|---------------|
+    | events                  | repeated [Event](abci++_basic_concepts.md#events) | Type & Key-Value events for indexing                                                | 1            | No            |
+    | tx_results              | repeated [ExecTxResult](#exectxresult)            | List of structures containing the data resulting from executing the transactions    | 2            | Yes           |
+    | validator_updates       | repeated [ValidatorUpdate](#validatorupdate)      | Changes to validator set (set voting power to 0 to remove).                         | 3            | Yes           |
+    | consensus_param_updates | [ConsensusParams](#consensusparams)               | Changes to gas, size, and other consensus-related parameters.                       | 4            | Yes           |
+    | app_hash                | bytes                                             | The Merkle root hash of the application state.                                      | 5            | Yes           |
+    | next_block_delay        | [google.protobuf.Duration][protobuf-duration]     | Delay between the time when this block is committed and the next height is started. | 6            | No            |
 
 * **Usage**:
     * Contains the fields of the newly decided block.
@@ -887,4 +888,5 @@ enum VerifyStatus {
         * If `Status` is `ACCEPT`, the consensus algorithm will accept the vote as valid.
         * If `Status` is `REJECT`, the consensus algorithm will reject the vote as invalid.
 
-[protobuf-timestamp]: https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#google.protobuf.Timestamp
+[protobuf-timestamp]: https://protobuf.dev/reference/protobuf/google.protobuf/#timestamp
+[protobuf-duration]: https://protobuf.dev/reference/protobuf/google.protobuf/#duration

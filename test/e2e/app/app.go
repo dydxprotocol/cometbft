@@ -277,6 +277,7 @@ func (app *Application) FinalizeBlock(_ context.Context, req *abci.RequestFinali
 				},
 			},
 		},
+		NextBlockDelay: 1 * time.Second,
 	}, nil
 }
 

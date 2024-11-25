@@ -118,7 +118,6 @@ transferBalance200FinalizeBlock12          1
 transferNodeNothingFinalizeBlock12         1
 
 ```
-
 The event number is a local variable kept by the indexer and incremented when a new event is processed.
 It is an `int64` variable and has no other semantics besides being used to associate attributes belonging to the same events within a height.
 This variable is not atomically incremented as event indexing is deterministic. **Should this ever change**, the event id generation
@@ -174,32 +173,30 @@ Example:
 
 ```go
 func (app *Application) FinalizeBlock(_ context.Context, req *types.RequestFinalizeBlock) (*types.ResponseFinalizeBlock, error) {
-
-    //...
-  tx_results[0] := &types.ExecTxResult{
-			Code: CodeTypeOK,
-			// With every transaction we can emit a series of events. To make it simple, we just emit the same events.
-			Events: []types.Event{
-				{
-					Type: "app",
-					Attributes: []types.EventAttribute{
-						{Key: "creator", Value: "Cosmoshi Netowoko", Index: true},
-						{Key: "key", Value: key, Index: true},
-						{Key: "index_key", Value: "index is working", Index: true},
-						{Key: "noindex_key", Value: "index is working", Index: false},
-					},
-				},
-				{
-					Type: "app",
-					Attributes: []types.EventAttribute{
-						{Key: "creator", Value: "Cosmoshi", Index: true},
-						{Key: "key", Value: value, Index: true},
-						{Key: "index_key", Value: "index is working", Index: true},
-						{Key: "noindex_key", Value: "index is working", Index: false},
-					},
-				},
-			},
-		}
+    tx_results[0] := &types.ExecTxResult{
+        Code: CodeTypeOK,
+        // With every transaction we can emit a series of events. To make it simple, we just emit the same events.
+        Events: []types.Event{
+            {
+                Type: "app",
+                Attributes: []types.EventAttribute{
+                    {Key: "creator", Value: "Cosmoshi Netowoko", Index: true},
+                    {Key: "key", Value: key, Index: true},
+                    {Key: "index_key", Value: "index is working", Index: true},
+                    {Key: "noindex_key", Value: "index is working", Index: false},
+                },
+            },
+            {
+                Type: "app",
+                Attributes: []types.EventAttribute{
+                    {Key: "creator", Value: "Cosmoshi", Index: true},
+                    {Key: "key", Value: value, Index: true},
+                    {Key: "index_key", Value: "index is working", Index: true},
+                    {Key: "noindex_key", Value: "index is working", Index: false},
+                },
+            },
+        },
+    }
 
     block_events = []types.Event{
 			{

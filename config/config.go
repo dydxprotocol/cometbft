@@ -158,9 +158,12 @@ func (cfg *Config) ValidateBasic() error {
 	return nil
 }
 
-// CheckDeprecated returns any deprecation warnings. These are printed to the operator on startup
+// CheckDeprecated returns any deprecation warnings. These are printed to the operator on startup.
 func (cfg *Config) CheckDeprecated() []string {
 	var warnings []string
+	if cfg.Consensus.TimeoutCommit != 0 {
+		warnings = append(warnings, "[consensus.timeout_commit] is deprecated. Use `next_block_delay` in the ABCI `FinalizeBlockResponse`.")
+	}
 	return warnings
 }
 
@@ -996,6 +999,7 @@ type ConsensusConfig struct {
 	// height (this gives us a chance to receive some more precommits, even
 	// though we already have +2/3).
 	// NOTE: when modifying, make sure to update time_iota_ms genesis parameter
+	// Deprecated: use `next_block_delay` in the ABCI application's `FinalizeBlockResponse`.
 	TimeoutCommit time.Duration `mapstructure:"timeout_commit"`
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
@@ -1078,6 +1082,7 @@ func (cfg *ConsensusConfig) Precommit(round int32) time.Duration {
 
 // Commit returns the amount of time to wait for straggler votes after receiving +2/3 precommits
 // for a single block (ie. a commit).
+// Deprecated: use `next_block_delay` in the ABCI application's `FinalizeBlockResponse`.
 func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
 	return t.Add(cfg.TimeoutCommit)
 }

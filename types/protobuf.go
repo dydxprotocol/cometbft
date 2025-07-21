@@ -40,8 +40,9 @@ func (tm2pb) Header(header *Header) cmtproto.Header {
 
 func (tm2pb) Validator(val *Validator) abci.Validator {
 	return abci.Validator{
-		Address: val.PubKey.Address(),
-		Power:   val.VotingPower,
+		Address:    val.PubKey.Address(),
+		Power:      val.VotingPower,
+		CanPropose: val.CanPropose,
 	}
 }
 
@@ -66,8 +67,9 @@ func (tm2pb) ValidatorUpdate(val *Validator) abci.ValidatorUpdate {
 		panic(err)
 	}
 	return abci.ValidatorUpdate{
-		PubKey: pk,
-		Power:  val.VotingPower,
+		PubKey:     pk,
+		Power:      val.VotingPower,
+		CanPropose: val.CanPropose,
 	}
 }
 
@@ -81,14 +83,19 @@ func (tm2pb) ValidatorUpdates(vals *ValidatorSet) []abci.ValidatorUpdate {
 }
 
 // XXX: panics on nil or unknown pubkey type
-func (tm2pb) NewValidatorUpdate(pubkey crypto.PubKey, power int64) abci.ValidatorUpdate {
+func (tm2pb) NewValidatorUpdate(
+	pubkey crypto.PubKey,
+	power int64,
+	canPropose bool,
+) abci.ValidatorUpdate {
 	pubkeyABCI, err := cryptoenc.PubKeyToProto(pubkey)
 	if err != nil {
 		panic(err)
 	}
 	return abci.ValidatorUpdate{
-		PubKey: pubkeyABCI,
-		Power:  power,
+		PubKey:     pubkeyABCI,
+		Power:      power,
+		CanPropose: canPropose,
 	}
 }
 
@@ -107,7 +114,7 @@ func (pb2tm) ValidatorUpdates(vals []abci.ValidatorUpdate) ([]*Validator, error)
 		if err != nil {
 			return nil, err
 		}
-		cmtVals[i] = NewValidator(pub, v.Power)
+		cmtVals[i] = NewValidator(pub, v.Power, v.CanPropose)
 	}
 	return cmtVals, nil
 }

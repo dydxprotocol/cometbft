@@ -308,19 +308,22 @@ func TestFinalizeBlockMisbehavior(t *testing.T) {
 
 	ev := []types.Evidence{dve, lcae}
 
+	dveVal := types.TM2PB.Validator(state.Validators.Validators[0])
+	dveVal.CanPropose = false // `CanPropose` is not set by dve.ABCI() and thus defaults to false.
+	lcaeVal := types.TM2PB.Validator(state.Validators.Validators[0])
 	abciMb := []abci.Misbehavior{
 		{
 			Type:             abci.MisbehaviorType_DUPLICATE_VOTE,
 			Height:           3,
 			Time:             defaultEvidenceTime,
-			Validator:        types.TM2PB.Validator(state.Validators.Validators[0]),
+			Validator:        dveVal,
 			TotalVotingPower: 10,
 		},
 		{
 			Type:             abci.MisbehaviorType_LIGHT_CLIENT_ATTACK,
 			Height:           8,
 			Time:             defaultEvidenceTime,
-			Validator:        types.TM2PB.Validator(state.Validators.Validators[0]),
+			Validator:        lcaeVal,
 			TotalVotingPower: 12,
 		},
 	}
@@ -409,8 +412,9 @@ func TestProcessProposal(t *testing.T) {
 			abci.VoteInfo{
 				BlockIdFlag: cmtproto.BlockIDFlagCommit,
 				Validator: abci.Validator{
-					Address: addr,
-					Power:   1000,
+					Address:    addr,
+					Power:      1000,
+					CanPropose: true,
 				},
 			})
 		lastCommitSig = append(lastCommitSig, vote.CommitSig())
@@ -475,6 +479,12 @@ func TestValidateValidatorUpdates(t *testing.T) {
 			false,
 		},
 		{
+			"updating proposer status of a validator is OK",
+			[]abci.ValidatorUpdate{{PubKey: pk1, Power: 20, CanPropose: true}},
+			defaultValidatorParams,
+			false,
+		},
+		{
 			"removing a validator is OK",
 			[]abci.ValidatorUpdate{{PubKey: pk2, Power: 0}},
 			defaultValidatorParams,
@@ -503,9 +513,9 @@ func TestValidateValidatorUpdates(t *testing.T) {
 
 func TestUpdateValidators(t *testing.T) {
 	pubkey1 := ed25519.GenPrivKey().PubKey()
-	val1 := types.NewValidator(pubkey1, 10)
+	val1 := types.NewValidator(pubkey1, 10, true)
 	pubkey2 := ed25519.GenPrivKey().PubKey()
-	val2 := types.NewValidator(pubkey2, 20)
+	val2 := types.NewValidator(pubkey2, 20, true)
 
 	pk, err := cryptoenc.PubKeyToProto(pubkey1)
 	require.NoError(t, err)
@@ -531,23 +541,43 @@ func TestUpdateValidators(t *testing.T) {
 		{
 			"updating a validator is OK",
 			types.NewValidatorSet([]*types.Validator{val1}),
-			[]abci.ValidatorUpdate{{PubKey: pk, Power: 20}},
-			types.NewValidatorSet([]*types.Validator{types.NewValidator(pubkey1, 20)}),
+			[]abci.ValidatorUpdate{{PubKey: pk, Power: 20, CanPropose: true}},
+			types.NewValidatorSet([]*types.Validator{types.NewValidator(pubkey1, 20, true)}),
 			false,
 		},
 		{
 			"removing a validator is OK",
 			types.NewValidatorSet([]*types.Validator{val1, val2}),
-			[]abci.ValidatorUpdate{{PubKey: pk2, Power: 0}},
+			[]abci.ValidatorUpdate{{PubKey: pk2, Power: 0, CanPropose: true}},
 			types.NewValidatorSet([]*types.Validator{val1}),
 			false,
 		},
 		{
 			"removing a non-existing validator results in error",
 			types.NewValidatorSet([]*types.Validator{val1}),
-			[]abci.ValidatorUpdate{{PubKey: pk2, Power: 0}},
+			[]abci.ValidatorUpdate{{PubKey: pk2, Power: 0, CanPropose: true}},
 			types.NewValidatorSet([]*types.Validator{val1}),
 			true,
+		},
+		{
+			"adding a validator to proposer set is OK",
+			types.NewValidatorSet([]*types.Validator{
+				types.NewValidator(pubkey1, 10, false),
+			}),
+			[]abci.ValidatorUpdate{{PubKey: pk, Power: 10, CanPropose: true}},
+			types.NewValidatorSet([]*types.Validator{
+				types.NewValidator(pubkey1, 10, true),
+			}),
+			false,
+		},
+		{
+			"removing a validator from proposer set is OK",
+			types.NewValidatorSet([]*types.Validator{val1}),
+			[]abci.ValidatorUpdate{{PubKey: pk, Power: 10, CanPropose: false}},
+			types.NewValidatorSet([]*types.Validator{
+				types.NewValidator(pubkey1, 10, false),
+			}),
+			false,
 		},
 	}
 
@@ -633,7 +663,7 @@ func TestFinalizeBlockValidatorUpdates(t *testing.T) {
 	pk, err := cryptoenc.PubKeyToProto(pubkey)
 	require.NoError(t, err)
 	app.ValidatorUpdates = []abci.ValidatorUpdate{
-		{PubKey: pk, Power: 10},
+		{PubKey: pk, Power: 10, CanPropose: true},
 	}
 
 	state, err = blockExec.ApplyBlock(state, blockID, block)
@@ -701,7 +731,7 @@ func TestFinalizeBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
 	require.NoError(t, err)
 	// Remove the only validator
 	app.ValidatorUpdates = []abci.ValidatorUpdate{
-		{PubKey: vp, Power: 0},
+		{PubKey: vp, Power: 0, CanPropose: false},
 	}
 
 	assert.NotPanics(t, func() { state, err = blockExec.ApplyBlock(state, blockID, block) })

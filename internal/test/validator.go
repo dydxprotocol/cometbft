@@ -17,7 +17,7 @@ func Validator(_ context.Context, votingPower int64) (*types.Validator, types.Pr
 		return nil, nil, err
 	}
 
-	val := types.NewValidator(pubKey, votingPower)
+	val := types.NewValidator(pubKey, votingPower, true)
 	return val, privVal, nil
 }
 

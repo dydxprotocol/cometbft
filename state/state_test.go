@@ -114,7 +114,7 @@ func TestFinalizeBlockResponsesSaveLoad1(t *testing.T) {
 	abciResponses.TxResults[0] = &abci.ExecTxResult{Data: []byte("foo"), Events: nil}
 	abciResponses.TxResults[1] = &abci.ExecTxResult{Data: []byte("bar"), Log: "ok", Events: nil}
 	abciResponses.ValidatorUpdates = []abci.ValidatorUpdate{
-		types.TM2PB.NewValidatorUpdate(ed25519.GenPrivKey().PubKey(), 10),
+		types.TM2PB.NewValidatorUpdate(ed25519.GenPrivKey().PubKey(), 10, true),
 	}
 
 	err := stateStore.SaveFinalizeBlockResponse(block.Height, abciResponses)
@@ -373,7 +373,7 @@ func TestProposerFrequency(t *testing.T) {
 			privVal := types.NewMockPV()
 			pubKey, err := privVal.GetPubKey()
 			require.NoError(t, err)
-			val := types.NewValidator(pubKey, votePower)
+			val := types.NewValidator(pubKey, votePower, true)
 			val.ProposerPriority = cmtrand.Int64()
 			vals[j] = val
 		}
@@ -390,7 +390,7 @@ func genValSetWithPowers(powers []int64) *types.ValidatorSet {
 	totalVotePower := int64(0)
 	for i := 0; i < size; i++ {
 		totalVotePower += powers[i]
-		val := types.NewValidator(ed25519.GenPrivKey().PubKey(), powers[i])
+		val := types.NewValidator(ed25519.GenPrivKey().PubKey(), powers[i], true)
 		val.ProposerPriority = cmtrand.Int64()
 		vals[i] = val
 	}
@@ -442,7 +442,12 @@ func TestProposerPriorityDoesNotGetResetToZero(t *testing.T) {
 	defer tearDown(t)
 	val1VotingPower := int64(10)
 	val1PubKey := ed25519.GenPrivKey().PubKey()
-	val1 := &types.Validator{Address: val1PubKey.Address(), PubKey: val1PubKey, VotingPower: val1VotingPower}
+	val1 := &types.Validator{
+		Address:     val1PubKey.Address(),
+		PubKey:      val1PubKey,
+		VotingPower: val1VotingPower,
+		CanPropose:  true,
+	}
 
 	state.Validators = types.NewValidatorSet([]*types.Validator{val1})
 	state.NextValidators = state.Validators
@@ -469,7 +474,7 @@ func TestProposerPriorityDoesNotGetResetToZero(t *testing.T) {
 	fvp, err := cryptoenc.PubKeyToProto(val2PubKey)
 	require.NoError(t, err)
 
-	updateAddVal := abci.ValidatorUpdate{PubKey: fvp, Power: val2VotingPower}
+	updateAddVal := abci.ValidatorUpdate{PubKey: fvp, Power: val2VotingPower, CanPropose: true}
 	validatorUpdates, err = types.PB2TM.ValidatorUpdates([]abci.ValidatorUpdate{updateAddVal})
 	assert.NoError(t, err)
 	updatedState2, err := sm.UpdateState(updatedState, blockID, &block.Header, abciResponses, validatorUpdates)
@@ -505,7 +510,7 @@ func TestProposerPriorityDoesNotGetResetToZero(t *testing.T) {
 	// Updating a validator does not reset the ProposerPriority to zero:
 	// 1. Add - Val2 VotingPower change to 1 =>
 	updatedVotingPowVal2 := int64(1)
-	updateVal := abci.ValidatorUpdate{PubKey: fvp, Power: updatedVotingPowVal2}
+	updateVal := abci.ValidatorUpdate{PubKey: fvp, Power: updatedVotingPowVal2, CanPropose: true}
 	validatorUpdates, err = types.PB2TM.ValidatorUpdates([]abci.ValidatorUpdate{updateVal})
 	assert.NoError(t, err)
 
@@ -555,7 +560,12 @@ func TestProposerPriorityProposerAlternates(t *testing.T) {
 	defer tearDown(t)
 	val1VotingPower := int64(10)
 	val1PubKey := ed25519.GenPrivKey().PubKey()
-	val1 := &types.Validator{Address: val1PubKey.Address(), PubKey: val1PubKey, VotingPower: val1VotingPower}
+	val1 := &types.Validator{
+		Address:     val1PubKey.Address(),
+		PubKey:      val1PubKey,
+		VotingPower: val1VotingPower,
+		CanPropose:  true,
+	}
 
 	// reset state validators to above validator
 	state.Validators = types.NewValidatorSet([]*types.Validator{val1})
@@ -585,7 +595,7 @@ func TestProposerPriorityProposerAlternates(t *testing.T) {
 	val2PubKey := ed25519.GenPrivKey().PubKey()
 	fvp, err := cryptoenc.PubKeyToProto(val2PubKey)
 	require.NoError(t, err)
-	updateAddVal := abci.ValidatorUpdate{PubKey: fvp, Power: val1VotingPower}
+	updateAddVal := abci.ValidatorUpdate{PubKey: fvp, Power: val1VotingPower, CanPropose: true}
 	validatorUpdates, err = types.PB2TM.ValidatorUpdates([]abci.ValidatorUpdate{updateAddVal})
 	assert.NoError(t, err)
 
@@ -725,6 +735,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 		Address:     genesisPubKey.Address(),
 		PubKey:      genesisPubKey,
 		VotingPower: genesisVotingPower,
+		CanPropose:  true,
 	}
 	// reset state validators to above validator
 	state.Validators = types.NewValidatorSet([]*types.Validator{genesisVal})
@@ -764,7 +775,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 	firstAddedValVotingPower := int64(10)
 	fvp, err := cryptoenc.PubKeyToProto(firstAddedValPubKey)
 	require.NoError(t, err)
-	firstAddedVal := abci.ValidatorUpdate{PubKey: fvp, Power: firstAddedValVotingPower}
+	firstAddedVal := abci.ValidatorUpdate{PubKey: fvp, Power: firstAddedValVotingPower, CanPropose: true}
 	validatorUpdates, err := types.PB2TM.ValidatorUpdates([]abci.ValidatorUpdate{firstAddedVal})
 	assert.NoError(t, err)
 	abciResponses := &abci.ResponseFinalizeBlock{
@@ -815,7 +826,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 		addedPubKey := ed25519.GenPrivKey().PubKey()
 		ap, err := cryptoenc.PubKeyToProto(addedPubKey)
 		require.NoError(t, err)
-		addedVal := abci.ValidatorUpdate{PubKey: ap, Power: firstAddedValVotingPower}
+		addedVal := abci.ValidatorUpdate{PubKey: ap, Power: firstAddedValVotingPower, CanPropose: true}
 		validatorUpdates, err := types.PB2TM.ValidatorUpdates([]abci.ValidatorUpdate{addedVal})
 		assert.NoError(t, err)
 
@@ -835,7 +846,7 @@ func TestLargeGenesisValidator(t *testing.T) {
 	// remove genesis validator:
 	gp, err := cryptoenc.PubKeyToProto(genesisPubKey)
 	require.NoError(t, err)
-	removeGenesisVal := abci.ValidatorUpdate{PubKey: gp, Power: 0}
+	removeGenesisVal := abci.ValidatorUpdate{PubKey: gp, Power: 0, CanPropose: false}
 	abciResponses = &abci.ResponseFinalizeBlock{
 		ValidatorUpdates: []abci.ValidatorUpdate{removeGenesisVal},
 	}

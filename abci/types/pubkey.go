@@ -8,7 +8,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/secp256k1"
 )
 
-func Ed25519ValidatorUpdate(pk []byte, power int64) ValidatorUpdate {
+func Ed25519ValidatorUpdate(pk []byte, power int64, canPropose bool) ValidatorUpdate {
 	pke := ed25519.PubKey(pk)
 
 	pkp, err := cryptoenc.PubKeyToProto(pke)
@@ -18,15 +18,16 @@ func Ed25519ValidatorUpdate(pk []byte, power int64) ValidatorUpdate {
 
 	return ValidatorUpdate{
 		// Address:
-		PubKey: pkp,
-		Power:  power,
+		PubKey:     pkp,
+		Power:      power,
+		CanPropose: canPropose,
 	}
 }
 
-func UpdateValidator(pk []byte, power int64, keyType string) ValidatorUpdate {
+func UpdateValidator(pk []byte, power int64, keyType string, canPropose bool) ValidatorUpdate {
 	switch keyType {
 	case "", ed25519.KeyType:
-		return Ed25519ValidatorUpdate(pk, power)
+		return Ed25519ValidatorUpdate(pk, power, canPropose)
 	case secp256k1.KeyType:
 		pke := secp256k1.PubKey(pk)
 		pkp, err := cryptoenc.PubKeyToProto(pke)
@@ -35,8 +36,9 @@ func UpdateValidator(pk []byte, power int64, keyType string) ValidatorUpdate {
 		}
 		return ValidatorUpdate{
 			// Address:
-			PubKey: pkp,
-			Power:  power,
+			PubKey:     pkp,
+			Power:      power,
+			CanPropose: canPropose,
 		}
 	default:
 		panic(fmt.Sprintf("key type %s not supported", keyType))

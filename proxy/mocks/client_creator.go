@@ -12,9 +12,13 @@ type ClientCreator struct {
 	mock.Mock
 }
 
-// NewABCIClient provides a mock function with given fields:
+// NewABCIClient provides a mock function with no fields
 func (_m *ClientCreator) NewABCIClient() (abcicli.Client, error) {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewABCIClient")
+	}
 
 	var r0 abcicli.Client
 	var r1 error
@@ -38,13 +42,12 @@ func (_m *ClientCreator) NewABCIClient() (abcicli.Client, error) {
 	return r0, r1
 }
 
-type mockConstructorTestingTNewClientCreator interface {
+// NewClientCreator creates a new instance of ClientCreator. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewClientCreator(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewClientCreator creates a new instance of ClientCreator. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewClientCreator(t mockConstructorTestingTNewClientCreator) *ClientCreator {
+}) *ClientCreator {
 	mock := &ClientCreator{}
 	mock.Mock.Test(t)
 

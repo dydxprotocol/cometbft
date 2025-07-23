@@ -23,6 +23,10 @@ type Client struct {
 func (_m *Client) ApplySnapshotChunk(_a0 context.Context, _a1 *types.RequestApplySnapshotChunk) (*types.ResponseApplySnapshotChunk, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for ApplySnapshotChunk")
+	}
+
 	var r0 *types.ResponseApplySnapshotChunk
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestApplySnapshotChunk) (*types.ResponseApplySnapshotChunk, error)); ok {
@@ -48,6 +52,10 @@ func (_m *Client) ApplySnapshotChunk(_a0 context.Context, _a1 *types.RequestAppl
 // CheckTx provides a mock function with given fields: _a0, _a1
 func (_m *Client) CheckTx(_a0 context.Context, _a1 *types.RequestCheckTx) (*types.ResponseCheckTx, error) {
 	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckTx")
+	}
 
 	var r0 *types.ResponseCheckTx
 	var r1 error
@@ -75,6 +83,10 @@ func (_m *Client) CheckTx(_a0 context.Context, _a1 *types.RequestCheckTx) (*type
 func (_m *Client) CheckTxAsync(_a0 context.Context, _a1 *types.RequestCheckTx) (*abcicli.ReqRes, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for CheckTxAsync")
+	}
+
 	var r0 *abcicli.ReqRes
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestCheckTx) (*abcicli.ReqRes, error)); ok {
@@ -100,6 +112,10 @@ func (_m *Client) CheckTxAsync(_a0 context.Context, _a1 *types.RequestCheckTx) (
 // Commit provides a mock function with given fields: _a0, _a1
 func (_m *Client) Commit(_a0 context.Context, _a1 *types.RequestCommit) (*types.ResponseCommit, error) {
 	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Commit")
+	}
 
 	var r0 *types.ResponseCommit
 	var r1 error
@@ -127,6 +143,10 @@ func (_m *Client) Commit(_a0 context.Context, _a1 *types.RequestCommit) (*types.
 func (_m *Client) Echo(_a0 context.Context, _a1 string) (*types.ResponseEcho, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for Echo")
+	}
+
 	var r0 *types.ResponseEcho
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (*types.ResponseEcho, error)); ok {
@@ -149,9 +169,13 @@ func (_m *Client) Echo(_a0 context.Context, _a1 string) (*types.ResponseEcho, er
 	return r0, r1
 }
 
-// Error provides a mock function with given fields:
+// Error provides a mock function with no fields
 func (_m *Client) Error() error {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Error")
+	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
@@ -166,6 +190,10 @@ func (_m *Client) Error() error {
 // ExtendVote provides a mock function with given fields: _a0, _a1
 func (_m *Client) ExtendVote(_a0 context.Context, _a1 *types.RequestExtendVote) (*types.ResponseExtendVote, error) {
 	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ExtendVote")
+	}
 
 	var r0 *types.ResponseExtendVote
 	var r1 error
@@ -193,6 +221,10 @@ func (_m *Client) ExtendVote(_a0 context.Context, _a1 *types.RequestExtendVote) 
 func (_m *Client) FinalizeBlock(_a0 context.Context, _a1 *types.RequestFinalizeBlock) (*types.ResponseFinalizeBlock, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for FinalizeBlock")
+	}
+
 	var r0 *types.ResponseFinalizeBlock
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestFinalizeBlock) (*types.ResponseFinalizeBlock, error)); ok {
@@ -219,6 +251,10 @@ func (_m *Client) FinalizeBlock(_a0 context.Context, _a1 *types.RequestFinalizeB
 func (_m *Client) Flush(_a0 context.Context) error {
 	ret := _m.Called(_a0)
 
+	if len(ret) == 0 {
+		panic("no return value specified for Flush")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
 		r0 = rf(_a0)
@@ -232,6 +268,10 @@ func (_m *Client) Flush(_a0 context.Context) error {
 // Info provides a mock function with given fields: _a0, _a1
 func (_m *Client) Info(_a0 context.Context, _a1 *types.RequestInfo) (*types.ResponseInfo, error) {
 	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Info")
+	}
 
 	var r0 *types.ResponseInfo
 	var r1 error
@@ -259,6 +299,10 @@ func (_m *Client) Info(_a0 context.Context, _a1 *types.RequestInfo) (*types.Resp
 func (_m *Client) InitChain(_a0 context.Context, _a1 *types.RequestInitChain) (*types.ResponseInitChain, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for InitChain")
+	}
+
 	var r0 *types.ResponseInitChain
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestInitChain) (*types.ResponseInitChain, error)); ok {
@@ -281,9 +325,13 @@ func (_m *Client) InitChain(_a0 context.Context, _a1 *types.RequestInitChain) (*
 	return r0, r1
 }
 
-// IsRunning provides a mock function with given fields:
+// IsRunning provides a mock function with no fields
 func (_m *Client) IsRunning() bool {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsRunning")
+	}
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func() bool); ok {
@@ -298,6 +346,10 @@ func (_m *Client) IsRunning() bool {
 // ListSnapshots provides a mock function with given fields: _a0, _a1
 func (_m *Client) ListSnapshots(_a0 context.Context, _a1 *types.RequestListSnapshots) (*types.ResponseListSnapshots, error) {
 	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSnapshots")
+	}
 
 	var r0 *types.ResponseListSnapshots
 	var r1 error
@@ -325,6 +377,10 @@ func (_m *Client) ListSnapshots(_a0 context.Context, _a1 *types.RequestListSnaps
 func (_m *Client) LoadSnapshotChunk(_a0 context.Context, _a1 *types.RequestLoadSnapshotChunk) (*types.ResponseLoadSnapshotChunk, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for LoadSnapshotChunk")
+	}
+
 	var r0 *types.ResponseLoadSnapshotChunk
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestLoadSnapshotChunk) (*types.ResponseLoadSnapshotChunk, error)); ok {
@@ -351,6 +407,10 @@ func (_m *Client) LoadSnapshotChunk(_a0 context.Context, _a1 *types.RequestLoadS
 func (_m *Client) OfferSnapshot(_a0 context.Context, _a1 *types.RequestOfferSnapshot) (*types.ResponseOfferSnapshot, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for OfferSnapshot")
+	}
+
 	var r0 *types.ResponseOfferSnapshot
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestOfferSnapshot) (*types.ResponseOfferSnapshot, error)); ok {
@@ -373,10 +433,14 @@ func (_m *Client) OfferSnapshot(_a0 context.Context, _a1 *types.RequestOfferSnap
 	return r0, r1
 }
 
-// OnReset provides a mock function with given fields:
+// OnReset provides a mock function with no fields
 func (_m *Client) OnReset() error {
 	ret := _m.Called()
 
+	if len(ret) == 0 {
+		panic("no return value specified for OnReset")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
@@ -387,10 +451,14 @@ func (_m *Client) OnReset() error {
 	return r0
 }
 
-// OnStart provides a mock function with given fields:
+// OnStart provides a mock function with no fields
 func (_m *Client) OnStart() error {
 	ret := _m.Called()
 
+	if len(ret) == 0 {
+		panic("no return value specified for OnStart")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
@@ -401,7 +469,7 @@ func (_m *Client) OnStart() error {
 	return r0
 }
 
-// OnStop provides a mock function with given fields:
+// OnStop provides a mock function with no fields
 func (_m *Client) OnStop() {
 	_m.Called()
 }
@@ -409,6 +477,10 @@ func (_m *Client) OnStop() {
 // PrepareProposal provides a mock function with given fields: _a0, _a1
 func (_m *Client) PrepareProposal(_a0 context.Context, _a1 *types.RequestPrepareProposal) (*types.ResponsePrepareProposal, error) {
 	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PrepareProposal")
+	}
 
 	var r0 *types.ResponsePrepareProposal
 	var r1 error
@@ -436,6 +508,10 @@ func (_m *Client) PrepareProposal(_a0 context.Context, _a1 *types.RequestPrepare
 func (_m *Client) ProcessProposal(_a0 context.Context, _a1 *types.RequestProcessProposal) (*types.ResponseProcessProposal, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for ProcessProposal")
+	}
+
 	var r0 *types.ResponseProcessProposal
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestProcessProposal) (*types.ResponseProcessProposal, error)); ok {
@@ -462,6 +538,10 @@ func (_m *Client) ProcessProposal(_a0 context.Context, _a1 *types.RequestProcess
 func (_m *Client) Query(_a0 context.Context, _a1 *types.RequestQuery) (*types.ResponseQuery, error) {
 	ret := _m.Called(_a0, _a1)
 
+	if len(ret) == 0 {
+		panic("no return value specified for Query")
+	}
+
 	var r0 *types.ResponseQuery
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *types.RequestQuery) (*types.ResponseQuery, error)); ok {
@@ -484,9 +564,13 @@ func (_m *Client) Query(_a0 context.Context, _a1 *types.RequestQuery) (*types.Re
 	return r0, r1
 }
 
-// Quit provides a mock function with given fields:
+// Quit provides a mock function with no fields
 func (_m *Client) Quit() <-chan struct{} {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Quit")
+	}
 
 	var r0 <-chan struct{}
 	if rf, ok := ret.Get(0).(func() <-chan struct{}); ok {
@@ -500,9 +584,13 @@ func (_m *Client) Quit() <-chan struct{} {
 	return r0
 }
 
-// Reset provides a mock function with given fields:
+// Reset provides a mock function with no fields
 func (_m *Client) Reset() error {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Reset")
+	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
@@ -524,10 +612,14 @@ func (_m *Client) SetResponseCallback(_a0 abcicli.Callback) {
 	_m.Called(_a0)
 }
 
-// Start provides a mock function with given fields:
+// Start provides a mock function with no fields
 func (_m *Client) Start() error {
 	ret := _m.Called()
 
+	if len(ret) == 0 {
+		panic("no return value specified for Start")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
@@ -538,10 +630,14 @@ func (_m *Client) Start() error {
 	return r0
 }
 
-// Stop provides a mock function with given fields:
+// Stop provides a mock function with no fields
 func (_m *Client) Stop() error {
 	ret := _m.Called()
 
+	if len(ret) == 0 {
+		panic("no return value specified for Stop")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
@@ -552,9 +648,13 @@ func (_m *Client) Stop() error {
 	return r0
 }
 
-// String provides a mock function with given fields:
+// String provides a mock function with no fields
 func (_m *Client) String() string {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for String")
+	}
 
 	var r0 string
 	if rf, ok := ret.Get(0).(func() string); ok {
@@ -569,6 +669,10 @@ func (_m *Client) String() string {
 // VerifyVoteExtension provides a mock function with given fields: _a0, _a1
 func (_m *Client) VerifyVoteExtension(_a0 context.Context, _a1 *types.RequestVerifyVoteExtension) (*types.ResponseVerifyVoteExtension, error) {
 	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyVoteExtension")
+	}
 
 	var r0 *types.ResponseVerifyVoteExtension
 	var r1 error
@@ -592,13 +696,12 @@ func (_m *Client) VerifyVoteExtension(_a0 context.Context, _a1 *types.RequestVer
 	return r0, r1
 }
 
-type mockConstructorTestingTNewClient interface {
+// NewClient creates a new instance of Client. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewClient(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewClient creates a new instance of Client. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewClient(t mockConstructorTestingTNewClient) *Client {
+}) *Client {
 	mock := &Client{}
 	mock.Mock.Test(t)
 

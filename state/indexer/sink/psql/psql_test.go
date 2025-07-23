@@ -39,7 +39,7 @@ var (
 const (
 	user     = "postgres"
 	password = "secret"
-	port     = "5432"
+	port     = "5432/tcp" // Use Docker's port mapping format
 	dsn      = "postgres://%s:%s@localhost:%s/%s?sslmode=disable"
 	dbName   = "postgres"
 	chainID  = "test-chainID"
@@ -88,7 +88,7 @@ func TestMain(m *testing.M) {
 
 	// Connect to the database, clear any leftover data, and install the
 	// indexing schema.
-	conn := fmt.Sprintf(dsn, user, password, resource.GetPort(port+"/tcp"), dbName)
+	conn := fmt.Sprintf(dsn, user, password, resource.GetPort("5432/tcp"), dbName)
 	var db *sql.DB
 
 	if err := pool.Retry(func() error {

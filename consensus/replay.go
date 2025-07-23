@@ -320,7 +320,7 @@ func (h *Handshaker) ReplayBlocksWithContext(
 	if appBlockHeight == 0 {
 		validators := make([]*types.Validator, len(h.genDoc.Validators))
 		for i, val := range h.genDoc.Validators {
-			// gensis validators default to `CanPropose = true`
+			// genesis validators default to `CanPropose = true`
 			validators[i] = types.NewValidator(val.PubKey, val.Power, true)
 		}
 		validatorSet := types.NewValidatorSet(validators)

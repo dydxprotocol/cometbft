@@ -189,7 +189,7 @@ func ValidatorFromProto(vp *cmtproto.Validator) (*Validator, error) {
 //----------------------------------------
 // RandValidator
 
-// RandValidator returns a randomized validator, useful for testing.
+// RandValidator returns a randomized validator that's eligible to propose blocks, useful for testing.
 // UNSTABLE
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	privVal := NewMockPV()

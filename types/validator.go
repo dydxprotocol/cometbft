@@ -19,16 +19,22 @@ type Validator struct {
 	Address     Address       `json:"address"`
 	PubKey      crypto.PubKey `json:"pub_key"`
 	VotingPower int64         `json:"voting_power"`
+	CanPropose  bool          `json:"can_propose"`
 
 	ProposerPriority int64 `json:"proposer_priority"`
 }
 
 // NewValidator returns a new validator with the given pubkey and voting power.
-func NewValidator(pubKey crypto.PubKey, votingPower int64) *Validator {
+func NewValidator(
+	pubKey crypto.PubKey,
+	votingPower int64,
+	canPropose bool,
+) *Validator {
 	return &Validator{
 		Address:          pubKey.Address(),
 		PubKey:           pubKey,
 		VotingPower:      votingPower,
+		CanPropose:       canPropose,
 		ProposerPriority: 0,
 	}
 }
@@ -90,15 +96,18 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 // 2. public key
 // 3. voting power
 // 4. proposer priority
+// 5. can propose
 func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
 	}
-	return fmt.Sprintf("Validator{%v %v VP:%v A:%v}",
+	return fmt.Sprintf("Validator{%v %v VP:%v A:%v CP:%v}",
 		v.Address,
 		v.PubKey,
 		v.VotingPower,
-		v.ProposerPriority)
+		v.ProposerPriority,
+		v.CanPropose,
+	)
 }
 
 // ValidatorListString returns a prettified validator list for logging purposes.
@@ -124,6 +133,7 @@ func (v *Validator) Bytes() []byte {
 	pbv := cmtproto.SimpleValidator{
 		PubKey:      &pk,
 		VotingPower: v.VotingPower,
+		CanPropose:  v.CanPropose,
 	}
 
 	bz, err := pbv.Marshal()
@@ -149,6 +159,7 @@ func (v *Validator) ToProto() (*cmtproto.Validator, error) {
 		PubKey:           pk,
 		VotingPower:      v.VotingPower,
 		ProposerPriority: v.ProposerPriority,
+		CanPropose:       v.CanPropose,
 	}
 
 	return &vp, nil
@@ -169,6 +180,7 @@ func ValidatorFromProto(vp *cmtproto.Validator) (*Validator, error) {
 	v.Address = vp.GetAddress()
 	v.PubKey = pk
 	v.VotingPower = vp.GetVotingPower()
+	v.CanPropose = vp.GetCanPropose()
 	v.ProposerPriority = vp.GetProposerPriority()
 
 	return v, nil
@@ -177,7 +189,7 @@ func ValidatorFromProto(vp *cmtproto.Validator) (*Validator, error) {
 //----------------------------------------
 // RandValidator
 
-// RandValidator returns a randomized validator, useful for testing.
+// RandValidator returns a randomized validator that's eligible to propose blocks, useful for testing.
 // UNSTABLE
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	privVal := NewMockPV()
@@ -189,6 +201,6 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	if err != nil {
 		panic(fmt.Errorf("could not retrieve pubkey %w", err))
 	}
-	val := NewValidator(pubKey, votePower)
+	val := NewValidator(pubKey, votePower, true)
 	return val, privVal
 }

@@ -120,6 +120,7 @@ func (pv MockPV) ExtractIntoValidator(votingPower int64) *Validator {
 		Address:     pubKey.Address(),
 		PubKey:      pubKey,
 		VotingPower: votingPower,
+		CanPropose:  true, // default to true for MockPV testing
 	}
 }
 

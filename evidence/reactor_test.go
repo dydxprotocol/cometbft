@@ -377,6 +377,7 @@ func TestEvidenceVectors(t *testing.T) {
 	val := &types.Validator{
 		Address:     crypto.AddressHash([]byte("validator_address")),
 		VotingPower: 10,
+		CanPropose:  true,
 	}
 
 	valSet := types.NewValidatorSet([]*types.Validator{val})

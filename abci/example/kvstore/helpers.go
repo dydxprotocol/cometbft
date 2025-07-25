@@ -13,11 +13,11 @@ import (
 )
 
 // RandVal creates one random validator, with a key derived
-// from the input value
+// from the input value, that's eligible to propose blocks.
 func RandVal() types.ValidatorUpdate {
 	pubkey := cmtrand.Bytes(32)
 	power := cmtrand.Uint16() + 1
-	v := types.UpdateValidator(pubkey, int64(power), "")
+	v := types.UpdateValidator(pubkey, int64(power), "", true)
 	return v
 }
 

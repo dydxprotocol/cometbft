@@ -150,7 +150,7 @@ func TestReportConflictingVotes(t *testing.T) {
 	var height int64 = 10
 
 	pool, pv := defaultTestPool(t, height)
-	val := types.NewValidator(pv.PrivKey.PubKey(), 10)
+	val := types.NewValidator(pv.PrivKey.PubKey(), 10, true)
 	ev, err := types.NewMockDuplicateVoteEvidenceWithValidator(height+1, defaultEvidenceTime, pv, evidenceChainID)
 	require.NoError(t, err)
 
@@ -395,7 +395,12 @@ func initializeStateFromValidatorSet(valSet *types.ValidatorSet, height int64) s
 
 func initializeValidatorState(privVal types.PrivValidator, height int64) sm.Store {
 	pubKey, _ := privVal.GetPubKey()
-	validator := &types.Validator{Address: pubKey.Address(), VotingPower: 10, PubKey: pubKey}
+	validator := &types.Validator{
+		Address:     pubKey.Address(),
+		VotingPower: 10,
+		PubKey:      pubKey,
+		CanPropose:  true,
+	}
 
 	// create validator set and state
 	valSet := &types.ValidatorSet{

@@ -485,9 +485,9 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 		0: {
 			ValidatorSet{
 				Validators: []*Validator{
-					{Address: []byte("a"), ProposerPriority: 1},
-					{Address: []byte("b"), ProposerPriority: 2},
-					{Address: []byte("c"), ProposerPriority: 3},
+					{Address: []byte("a"), ProposerPriority: 1, CanPropose: true},
+					{Address: []byte("b"), ProposerPriority: 2, CanPropose: true},
+					{Address: []byte("c"), ProposerPriority: 3, CanPropose: true},
 				},
 			},
 			1, 2,
@@ -495,9 +495,9 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 		1: {
 			ValidatorSet{
 				Validators: []*Validator{
-					{Address: []byte("a"), ProposerPriority: 10},
-					{Address: []byte("b"), ProposerPriority: -10},
-					{Address: []byte("c"), ProposerPriority: 1},
+					{Address: []byte("a"), ProposerPriority: 10, CanPropose: true},
+					{Address: []byte("b"), ProposerPriority: -10, CanPropose: true},
+					{Address: []byte("c"), ProposerPriority: 1, CanPropose: true},
 				},
 			},
 			// this should average twice but the average should be 0 after the first iteration
@@ -508,9 +508,9 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 		2: {
 			ValidatorSet{
 				Validators: []*Validator{
-					{Address: []byte("a"), ProposerPriority: 100},
-					{Address: []byte("b"), ProposerPriority: -10},
-					{Address: []byte("c"), ProposerPriority: 1},
+					{Address: []byte("a"), ProposerPriority: 100, CanPropose: true},
+					{Address: []byte("b"), ProposerPriority: -10, CanPropose: true},
+					{Address: []byte("c"), ProposerPriority: 1, CanPropose: true},
 				},
 			},
 			1, 91 / 3,
@@ -1580,7 +1580,7 @@ func BenchmarkUpdates(b *testing.B) {
 
 func TestVerifyCommitWithInvalidProposerKey(t *testing.T) {
 	vs := &ValidatorSet{
-		Validators: []*Validator{{}, {}},
+		Validators: []*Validator{{CanPropose: true}, {CanPropose: true}},
 	}
 	commit := &Commit{
 		Height:     100,

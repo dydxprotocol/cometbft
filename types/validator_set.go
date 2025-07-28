@@ -218,7 +218,14 @@ func computeMaxMinPriorityDiff(vals *ValidatorSet) int64 {
 func (vals *ValidatorSet) getValWithMostPriority() *Validator {
 	var res *Validator
 	for _, val := range vals.Validators {
-		res = res.CompareProposerPriority(val)
+		// Only consider validators that can propose
+		if val.CanPropose {
+			res = res.CompareProposerPriority(val)
+		}
+	}
+	// If no validator can propose, panic as this is an invalid state
+	if res == nil {
+		panic("no validators can propose")
 	}
 	return res
 }
@@ -335,9 +342,14 @@ func (vals *ValidatorSet) GetProposer() (proposer *Validator) {
 func (vals *ValidatorSet) findProposer() *Validator {
 	var proposer *Validator
 	for _, val := range vals.Validators {
-		if proposer == nil || !bytes.Equal(val.Address, proposer.Address) {
+		// Only consider validators that can propose
+		if val.CanPropose && (proposer == nil || !bytes.Equal(val.Address, proposer.Address)) {
 			proposer = proposer.CompareProposerPriority(val)
 		}
+	}
+	// If no validator can propose, panic as this is an invalid state
+	if proposer == nil {
+		panic("no validators can propose")
 	}
 	return proposer
 }
@@ -710,6 +722,10 @@ func (vals *ValidatorSet) VerifyCommitLightTrustingAllSignatures(
 func (vals *ValidatorSet) findPreviousProposer() *Validator {
 	var previousProposer *Validator
 	for _, val := range vals.Validators {
+		// Only consider validators that can propose
+		if !val.CanPropose {
+			continue
+		}
 		if previousProposer == nil {
 			previousProposer = val
 			continue

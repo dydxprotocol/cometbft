@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,4 +102,164 @@ func TestCopyCanPropose(t *testing.T) {
 	for i, v := range vset.Validators {
 		assert.Equal(t, v.CanPropose, vsetCopy.Validators[i].CanPropose)
 	}
+}
+
+// As all validators accumulate proposer priority but only proposers get their priority deducted,
+// those who aren't part of the proposer set will have accumulated priority that's much higher than
+// those who are in the proposer set and can impact proposer selection once they join the proposer set.
+//
+// Below tests demonstrate that the system quickly resolves this imbalance and behaves as normal.
+// Note: can be run with verbose logging to see how priorities change each round.
+//
+// Mathematically, the max diff of priorities in a proposer set is bounded to 2 * TotalVotingPower
+// and a proposer's priority is reduced by TotalVotingPower each time it's selected. Thus, a newly joined
+// proposer can be selected at most 2 times in a row before its priority falls below those who have been
+// part of the proposer set. TestAddOneToProposerSet and TestAddManyToProposerSet programmatically verify
+// such behavior.
+func TestAddOneToProposerSet(t *testing.T) {
+	// Set up
+	// - proposer set: val1
+	// - additional validator: val2
+	vals := []*Validator{
+		newValidator([]byte("val1"), 100, true),
+		newValidator([]byte("val2"), 100, false),
+	}
+	vset := NewValidatorSet(vals)
+
+	// Let proposer selection run for some rounds
+	incrementAndLogProposerPriority(vset, 50, "Before adding val2 to proposer set")
+
+	// Add val2 to proposer set
+	findValidator(vset, []byte("val2")).CanPropose = true
+
+	// Future proposer selection should be [val2, val2, val1, val2, val1, ...]
+	proposerSequence := incrementAndLogProposerPriority(vset, 100, "\nAfter adding val2 to proposer set")
+
+	assert.Equal(t, "val2", proposerSequence[0])
+	assert.Equal(t, "val2", proposerSequence[1])
+
+	for i := 2; i < len(proposerSequence); i++ {
+		current := proposerSequence[i]
+		prev := proposerSequence[i-1]
+		assert.NotEqual(t, current, prev)
+	}
+}
+
+// Can be run with verbose logging to see how priorities change for different validators.
+func TestAddManyToProposerSet(t *testing.T) {
+	// Set up
+	// - proposer set: val1
+	// - additional validators: val2, val3, val4
+	vals := []*Validator{
+		newValidator([]byte("val1"), 100, true),
+		newValidator([]byte("val2"), 100, false),
+		newValidator([]byte("val3"), 100, false),
+		newValidator([]byte("val4"), 100, false),
+	}
+	vset := NewValidatorSet(vals)
+
+	// Let proposer selection run for some rounds
+	incrementAndLogProposerPriority(vset, 50, "Before adding val2, val3, val4 to proposer set")
+
+	// Add val2, val3, val4 to proposer set
+	findValidator(vset, []byte("val2")).CanPropose = true
+	findValidator(vset, []byte("val3")).CanPropose = true
+	findValidator(vset, []byte("val4")).CanPropose = true
+
+	// Afterwards,
+	// 1. First 6 selections should be round robin among val2, val3, val4
+	// 2. Then system is back to normal and rotates among all 4 proposers
+	// i.e. [val2, val3, val4, val2, val3, val4, val1, val2, val3, val4, ...]
+	proposerSequence := incrementAndLogProposerPriority(vset, 100, "\nAfter adding val2, val3, val4 to proposer set")
+
+	// Verify first 6 proposers
+	firstSix := make(map[string]int)
+	for i := 0; i < 6; i++ {
+		firstSix[proposerSequence[i]]++
+	}
+
+	for _, val := range []string{"val2", "val3", "val4"} {
+		assert.Equal(t, 2, firstSix[val], "%s should appear exactly twice in first 6", val)
+	}
+
+	// Verify subsequent proposers
+	for i := 6; i < len(proposerSequence); i++ {
+		switch i % 4 {
+		case 2:
+			assert.Equal(t, "val1", proposerSequence[i])
+		case 3:
+			assert.Equal(t, "val2", proposerSequence[i])
+		case 0:
+			assert.Equal(t, "val3", proposerSequence[i])
+		case 1:
+			assert.Equal(t, "val4", proposerSequence[i])
+		}
+	}
+}
+
+// Note that this test has no assertions and is mainly for manual inspection of how priorities
+// change for a proposer set where voting powers are vastly different.
+func TestAddManyToProposerSetDifferentPowers(t *testing.T) {
+	// Set up
+	// - proposer set: val2, val3
+	// - additional validators: val1, val4
+	vals := []*Validator{
+		newValidator([]byte("val1"), 50, false),
+		newValidator([]byte("val2"), 500, true),
+		newValidator([]byte("val3"), 5000, true),
+		newValidator([]byte("val4"), 50000, false),
+	}
+	vset := NewValidatorSet(vals)
+
+	// Let proposer selection run for some rounds
+	incrementAndLogProposerPriority(vset, 50, "Before adding val1, val4 to proposer set")
+
+	// Add val1, val4 to proposer set
+	findValidator(vset, []byte("val1")).CanPropose = true
+	findValidator(vset, []byte("val4")).CanPropose = true
+
+	// Run for some rounds
+	incrementAndLogProposerPriority(vset, 50, "\nAfter adding val1, val4 to proposer set")
+}
+
+// findValidator finds a validator by address given a validator set
+func findValidator(vset *ValidatorSet, address []byte) *Validator {
+	for _, v := range vset.Validators {
+		if string(v.Address) == string(address) {
+			return v
+		}
+	}
+	return nil
+}
+
+// incrementAndLogProposerPriority is a helper function that increments proposer priority and logs validator set state.
+// Returns an array of selected proposers by their address strings.
+func incrementAndLogProposerPriority(vset *ValidatorSet, rounds int, phase string) []string {
+	// Build header
+	header := "Round | Selected"
+	divider := "------|----------"
+	for _, v := range vset.Validators {
+		header += fmt.Sprintf(" | %s(%d,%s)", string(v.Address), v.VotingPower,
+			map[bool]string{true: "T", false: "F"}[v.CanPropose])
+		divider += "|" + strings.Repeat("-", 13)
+	}
+
+	fmt.Printf("%s:\n", phase)
+	fmt.Printf("%s\n", header)
+	fmt.Printf("%s\n", divider)
+
+	proposerSequence := []string{}
+	for round := 1; round <= rounds; round++ {
+		vset.IncrementProposerPriority(1)
+		proposer := vset.GetProposer()
+		proposerSequence = append(proposerSequence, string(proposer.Address))
+
+		row := fmt.Sprintf("%5d | %8s", round, string(proposer.Address))
+		for _, v := range vset.Validators {
+			row += fmt.Sprintf(" | %*d", 11, v.ProposerPriority)
+		}
+		fmt.Printf("%s\n", row)
+	}
+
+	return proposerSequence
 }

@@ -561,9 +561,7 @@ func TestUpdateValidators(t *testing.T) {
 		},
 		{
 			"adding a validator to proposer set is OK",
-			types.NewValidatorSet([]*types.Validator{
-				types.NewValidator(pubkey1, 10, false),
-			}),
+			types.NewValidatorSet([]*types.Validator{}),
 			[]abci.ValidatorUpdate{{PubKey: pk, Power: 10, CanPropose: true}},
 			types.NewValidatorSet([]*types.Validator{
 				types.NewValidator(pubkey1, 10, true),
@@ -572,10 +570,11 @@ func TestUpdateValidators(t *testing.T) {
 		},
 		{
 			"removing a validator from proposer set is OK",
-			types.NewValidatorSet([]*types.Validator{val1}),
+			types.NewValidatorSet([]*types.Validator{val1, val2}),
 			[]abci.ValidatorUpdate{{PubKey: pk, Power: 10, CanPropose: false}},
 			types.NewValidatorSet([]*types.Validator{
 				types.NewValidator(pubkey1, 10, false),
+				val2,
 			}),
 			false,
 		},

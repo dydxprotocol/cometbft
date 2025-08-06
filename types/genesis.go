@@ -59,7 +59,7 @@ func (genDoc *GenesisDoc) ValidatorHash() []byte {
 	vals := make([]*Validator, len(genDoc.Validators))
 	for i, v := range genDoc.Validators {
 		// genesis validators default to being eligible to propose blocks.
-		vals[i] = NewValidator(v.PubKey, v.Power, true)
+		vals[i] = NewValidator(v.PubKey, v.Power, false)
 	}
 	vset := NewValidatorSet(vals)
 	return vset.Hash()

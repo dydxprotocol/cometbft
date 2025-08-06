@@ -162,7 +162,7 @@ func makeState(nVals, height int) (sm.State, dbm.DB, map[string]types.PrivValida
 func genValSet(size int) *types.ValidatorSet {
 	vals := make([]*types.Validator, size)
 	for i := 0; i < size; i++ {
-		vals[i] = types.NewValidator(ed25519.GenPrivKey().PubKey(), 10, true)
+		vals[i] = types.NewValidator(ed25519.GenPrivKey().PubKey(), 10, false)
 	}
 	return types.NewValidatorSet(vals)
 }
@@ -177,8 +177,8 @@ func makeHeaderPartsResponsesValPubKeyChange(
 	_, val := state.NextValidators.GetByIndex(0)
 	if !bytes.Equal(pubkey.Bytes(), val.PubKey.Bytes()) {
 		abciResponses.ValidatorUpdates = []abci.ValidatorUpdate{
-			types.TM2PB.NewValidatorUpdate(val.PubKey, 0, false),
-			types.TM2PB.NewValidatorUpdate(pubkey, 10, true),
+			types.TM2PB.NewValidatorUpdate(val.PubKey, 0, val.ProposeDisabled),
+			types.TM2PB.NewValidatorUpdate(pubkey, 10, val.ProposeDisabled),
 		}
 	}
 
@@ -196,7 +196,7 @@ func makeHeaderPartsResponsesValPowerChange(
 	_, val := state.NextValidators.GetByIndex(0)
 	if val.VotingPower != power {
 		abciResponses.ValidatorUpdates = []abci.ValidatorUpdate{
-			types.TM2PB.NewValidatorUpdate(val.PubKey, power, true),
+			types.TM2PB.NewValidatorUpdate(val.PubKey, power, val.ProposeDisabled),
 		}
 	}
 

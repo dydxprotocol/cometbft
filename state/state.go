@@ -335,8 +335,8 @@ func MakeGenesisState(genDoc *types.GenesisDoc) (State, error) {
 	} else {
 		validators := make([]*types.Validator, len(genDoc.Validators))
 		for i, val := range genDoc.Validators {
-			// genesis validators default to `CanPropose = true`
-			validators[i] = types.NewValidator(val.PubKey, val.Power, true)
+			// genesis validators default to `ProposeDisabled = false`
+			validators[i] = types.NewValidator(val.PubKey, val.Power, false)
 		}
 		validatorSet = types.NewValidatorSet(validators)
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)

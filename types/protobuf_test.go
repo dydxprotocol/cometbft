@@ -31,9 +31,9 @@ func TestABCIValidators(t *testing.T) {
 	pkEd := ed25519.GenPrivKey().PubKey()
 
 	// correct validator
-	cmtValExpected := NewValidator(pkEd, 10, true)
+	cmtValExpected := NewValidator(pkEd, 10, false)
 
-	cmtVal := NewValidator(pkEd, 10, true)
+	cmtVal := NewValidator(pkEd, 10, false)
 
 	abciVal := TM2PB.ValidatorUpdate(cmtVal)
 	cmtVals, err := PB2TM.ValidatorUpdates([]abci.ValidatorUpdate{abciVal})
@@ -66,7 +66,7 @@ func TestABCIValidatorFromPubKeyAndPower(t *testing.T) {
 
 	abciVal := TM2PB.NewValidatorUpdate(pubkey, 10, true)
 	assert.Equal(t, int64(10), abciVal.Power)
-	assert.Equal(t, true, abciVal.CanPropose)
+	assert.Equal(t, true, abciVal.ProposeDisabled)
 
 	assert.Panics(t, func() { TM2PB.NewValidatorUpdate(nil, 10, true) })
 	assert.Panics(t, func() { TM2PB.NewValidatorUpdate(pubKeyEddie{}, 10, true) })
@@ -75,13 +75,13 @@ func TestABCIValidatorFromPubKeyAndPower(t *testing.T) {
 func TestABCIValidatorWithoutPubKey(t *testing.T) {
 	pkEd := ed25519.GenPrivKey().PubKey()
 
-	abciVal := TM2PB.Validator(NewValidator(pkEd, 10, true))
+	abciVal := TM2PB.Validator(NewValidator(pkEd, 10, false))
 
 	// pubkey must be nil
 	cmtValExpected := abci.Validator{
-		Address:    pkEd.Address(),
-		Power:      10,
-		CanPropose: true,
+		Address:         pkEd.Address(),
+		Power:           10,
+		ProposeDisabled: false,
 	}
 
 	assert.Equal(t, cmtValExpected, abciVal)

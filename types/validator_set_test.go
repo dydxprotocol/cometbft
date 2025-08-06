@@ -153,9 +153,9 @@ func TestCopy(t *testing.T) {
 // Test that IncrementProposerPriority requires positive times.
 func TestIncrementProposerPriorityPositiveTimes(t *testing.T) {
 	vset := NewValidatorSet([]*Validator{
-		newValidator([]byte("foo"), 1000, true),
-		newValidator([]byte("bar"), 300, true),
-		newValidator([]byte("baz"), 330, true),
+		newValidator([]byte("foo"), 1000, false),
+		newValidator([]byte("bar"), 300, false),
+		newValidator([]byte("baz"), 330, false),
 	})
 
 	assert.Panics(t, func() { vset.IncrementProposerPriority(-1) })
@@ -169,7 +169,7 @@ func BenchmarkValidatorSetCopy(b *testing.B) {
 	for i := 0; i < 1000; i++ {
 		privKey := ed25519.GenPrivKey()
 		pubKey := privKey.PubKey()
-		val := NewValidator(pubKey, 10, true)
+		val := NewValidator(pubKey, 10, false)
 		err := vset.UpdateWithChangeSet([]*Validator{val})
 		if err != nil {
 			panic("Failed to add validator")
@@ -186,9 +186,9 @@ func BenchmarkValidatorSetCopy(b *testing.B) {
 
 func TestProposerSelection1(t *testing.T) {
 	vset := NewValidatorSet([]*Validator{
-		newValidator([]byte("foo"), 1000, true),
-		newValidator([]byte("bar"), 300, true),
-		newValidator([]byte("baz"), 330, true),
+		newValidator([]byte("foo"), 1000, false),
+		newValidator([]byte("bar"), 300, false),
+		newValidator([]byte("baz"), 330, false),
 	})
 	var proposers []string
 	for i := 0; i < 99; i++ {
@@ -212,7 +212,7 @@ func TestProposerSelection2(t *testing.T) {
 	addr2 := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2}
 
 	// when all voting power is same, we go in order of addresses
-	val0, val1, val2 := newValidator(addr0, 100, true), newValidator(addr1, 100, true), newValidator(addr2, 100, true)
+	val0, val1, val2 := newValidator(addr0, 100, false), newValidator(addr1, 100, false), newValidator(addr2, 100, false)
 	valList := []*Validator{val0, val1, val2}
 	vals := NewValidatorSet(valList)
 	for i := 0; i < len(valList)*5; i++ {
@@ -225,7 +225,7 @@ func TestProposerSelection2(t *testing.T) {
 	}
 
 	// One validator has more than the others, but not enough to propose twice in a row
-	*val2 = *newValidator(addr2, 400, true)
+	*val2 = *newValidator(addr2, 400, false)
 	vals = NewValidatorSet(valList)
 	// vals.IncrementProposerPriority(1)
 	prop := vals.GetProposer()
@@ -239,7 +239,7 @@ func TestProposerSelection2(t *testing.T) {
 	}
 
 	// One validator has more than the others, and enough to be proposer twice in a row
-	*val2 = *newValidator(addr2, 401, true)
+	*val2 = *newValidator(addr2, 401, false)
 	vals = NewValidatorSet(valList)
 	prop = vals.GetProposer()
 	if !bytes.Equal(prop.Address, addr2) {
@@ -257,7 +257,7 @@ func TestProposerSelection2(t *testing.T) {
 	}
 
 	// each validator should be the proposer a proportional number of times
-	val0, val1, val2 = newValidator(addr0, 4, true), newValidator(addr1, 5, true), newValidator(addr2, 3, true)
+	val0, val1, val2 = newValidator(addr0, 4, false), newValidator(addr1, 5, false), newValidator(addr2, 3, false)
 	valList = []*Validator{val0, val1, val2}
 	propCount := make([]int, 3)
 	vals = NewValidatorSet(valList)
@@ -300,10 +300,10 @@ func TestProposerSelection2(t *testing.T) {
 
 func TestProposerSelection3(t *testing.T) {
 	vals := []*Validator{
-		newValidator([]byte("avalidator_address12"), 1, true),
-		newValidator([]byte("bvalidator_address12"), 1, true),
-		newValidator([]byte("cvalidator_address12"), 1, true),
-		newValidator([]byte("dvalidator_address12"), 1, true),
+		newValidator([]byte("avalidator_address12"), 1, false),
+		newValidator([]byte("bvalidator_address12"), 1, false),
+		newValidator([]byte("cvalidator_address12"), 1, false),
+		newValidator([]byte("dvalidator_address12"), 1, false),
 	}
 
 	for i := 0; i < 4; i++ {
@@ -365,8 +365,8 @@ func TestProposerSelection3(t *testing.T) {
 	}
 }
 
-func newValidator(address []byte, power int64, canPropose bool) *Validator {
-	return &Validator{Address: address, VotingPower: power, CanPropose: canPropose}
+func newValidator(address []byte, power int64, proposeDisabled bool) *Validator {
+	return &Validator{Address: address, VotingPower: power, ProposeDisabled: proposeDisabled}
 }
 
 func randPubKey() crypto.PubKey {
@@ -378,7 +378,7 @@ func randPubKey() crypto.PubKey {
 func randValidator(totalVotingPower int64) *Validator {
 	// this modulo limits the ProposerPriority/VotingPower to stay in the
 	// bounds of MaxTotalVotingPower minus the already existing voting power:
-	val := NewValidator(randPubKey(), int64(cmtrand.Uint64()%uint64(MaxTotalVotingPower-totalVotingPower)), true)
+	val := NewValidator(randPubKey(), int64(cmtrand.Uint64()%uint64(MaxTotalVotingPower-totalVotingPower)), false)
 	val.ProposerPriority = cmtrand.Int64() % (MaxTotalVotingPower - totalVotingPower)
 	return val
 }
@@ -430,9 +430,9 @@ func TestValidatorSetTotalVotingPowerPanicsOnOverflow(t *testing.T) {
 	// which should panic on overflows:
 	shouldPanic := func() {
 		NewValidatorSet([]*Validator{
-			{Address: []byte("a"), VotingPower: math.MaxInt64, ProposerPriority: 0, CanPropose: true},
-			{Address: []byte("b"), VotingPower: math.MaxInt64, ProposerPriority: 0, CanPropose: true},
-			{Address: []byte("c"), VotingPower: math.MaxInt64, ProposerPriority: 0, CanPropose: true},
+			{Address: []byte("a"), VotingPower: math.MaxInt64, ProposerPriority: 0},
+			{Address: []byte("b"), VotingPower: math.MaxInt64, ProposerPriority: 0},
+			{Address: []byte("c"), VotingPower: math.MaxInt64, ProposerPriority: 0},
 		})
 	}
 
@@ -485,9 +485,9 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 		0: {
 			ValidatorSet{
 				Validators: []*Validator{
-					{Address: []byte("a"), ProposerPriority: 1, CanPropose: true},
-					{Address: []byte("b"), ProposerPriority: 2, CanPropose: true},
-					{Address: []byte("c"), ProposerPriority: 3, CanPropose: true},
+					{Address: []byte("a"), ProposerPriority: 1},
+					{Address: []byte("b"), ProposerPriority: 2},
+					{Address: []byte("c"), ProposerPriority: 3},
 				},
 			},
 			1, 2,
@@ -495,9 +495,9 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 		1: {
 			ValidatorSet{
 				Validators: []*Validator{
-					{Address: []byte("a"), ProposerPriority: 10, CanPropose: true},
-					{Address: []byte("b"), ProposerPriority: -10, CanPropose: true},
-					{Address: []byte("c"), ProposerPriority: 1, CanPropose: true},
+					{Address: []byte("a"), ProposerPriority: 10},
+					{Address: []byte("b"), ProposerPriority: -10},
+					{Address: []byte("c"), ProposerPriority: 1},
 				},
 			},
 			// this should average twice but the average should be 0 after the first iteration
@@ -508,9 +508,9 @@ func TestAveragingInIncrementProposerPriority(t *testing.T) {
 		2: {
 			ValidatorSet{
 				Validators: []*Validator{
-					{Address: []byte("a"), ProposerPriority: 100, CanPropose: true},
-					{Address: []byte("b"), ProposerPriority: -10, CanPropose: true},
-					{Address: []byte("c"), ProposerPriority: 1, CanPropose: true},
+					{Address: []byte("a"), ProposerPriority: 100},
+					{Address: []byte("b"), ProposerPriority: -10},
+					{Address: []byte("c"), ProposerPriority: 1},
 				},
 			},
 			1, 91 / 3,
@@ -536,9 +536,9 @@ func TestAveragingInIncrementProposerPriorityWithVotingPower(t *testing.T) {
 	total := vp0 + vp1 + vp2
 	avg := (vp0 + vp1 + vp2 - total) / 3
 	vals := ValidatorSet{Validators: []*Validator{
-		{Address: []byte{0}, ProposerPriority: 0, VotingPower: vp0, CanPropose: true},
-		{Address: []byte{1}, ProposerPriority: 0, VotingPower: vp1, CanPropose: true},
-		{Address: []byte{2}, ProposerPriority: 0, VotingPower: vp2, CanPropose: true},
+		{Address: []byte{0}, ProposerPriority: 0, VotingPower: vp0},
+		{Address: []byte{1}, ProposerPriority: 0, VotingPower: vp1},
+		{Address: []byte{2}, ProposerPriority: 0, VotingPower: vp2},
 	}}
 	tcs := []struct {
 		vals                  *ValidatorSet
@@ -711,15 +711,15 @@ func TestEmptySet(t *testing.T) {
 	valSet.GetProposer()
 
 	// Add to empty set
-	v1 := newValidator([]byte("v1"), 100, true)
-	v2 := newValidator([]byte("v2"), 100, true)
+	v1 := newValidator([]byte("v1"), 100, false)
+	v2 := newValidator([]byte("v2"), 100, false)
 	valList = []*Validator{v1, v2}
 	assert.NoError(t, valSet.UpdateWithChangeSet(valList))
 	verifyValidatorSet(t, valSet)
 
 	// Delete all validators from set
-	v1 = newValidator([]byte("v1"), 0, true)
-	v2 = newValidator([]byte("v2"), 0, true)
+	v1 = newValidator([]byte("v1"), 0, false)
+	v2 = newValidator([]byte("v2"), 0, false)
 	delList := []*Validator{v1, v2}
 	assert.Error(t, valSet.UpdateWithChangeSet(delList))
 
@@ -728,30 +728,30 @@ func TestEmptySet(t *testing.T) {
 }
 
 func TestUpdatesForNewValidatorSet(t *testing.T) {
-	v1 := newValidator([]byte("v1"), 100, true)
-	v2 := newValidator([]byte("v2"), 100, true)
+	v1 := newValidator([]byte("v1"), 100, false)
+	v2 := newValidator([]byte("v2"), 100, false)
 	valList := []*Validator{v1, v2}
 	valSet := NewValidatorSet(valList)
 	verifyValidatorSet(t, valSet)
 
 	// Verify duplicates are caught in NewValidatorSet() and it panics
-	v111 := newValidator([]byte("v1"), 100, true)
-	v112 := newValidator([]byte("v1"), 123, true)
-	v113 := newValidator([]byte("v1"), 234, true)
+	v111 := newValidator([]byte("v1"), 100, false)
+	v112 := newValidator([]byte("v1"), 123, false)
+	v113 := newValidator([]byte("v1"), 234, false)
 	valList = []*Validator{v111, v112, v113}
 	assert.Panics(t, func() { NewValidatorSet(valList) })
 
 	// Verify set including validator with voting power 0 cannot be created
-	v1 = newValidator([]byte("v1"), 0, true)
-	v2 = newValidator([]byte("v2"), 22, true)
-	v3 := newValidator([]byte("v3"), 33, true)
+	v1 = newValidator([]byte("v1"), 0, false)
+	v2 = newValidator([]byte("v2"), 22, false)
+	v3 := newValidator([]byte("v3"), 33, false)
 	valList = []*Validator{v1, v2, v3}
 	assert.Panics(t, func() { NewValidatorSet(valList) })
 
 	// Verify set including validator with negative voting power cannot be created
-	v1 = newValidator([]byte("v1"), 10, true)
-	v2 = newValidator([]byte("v2"), -20, true)
-	v3 = newValidator([]byte("v3"), 30, true)
+	v1 = newValidator([]byte("v1"), 10, false)
+	v2 = newValidator([]byte("v2"), -20, false)
+	v3 = newValidator([]byte("v3"), 30, false)
 	valList = []*Validator{v1, v2, v3}
 	assert.Panics(t, func() { NewValidatorSet(valList) })
 }
@@ -776,7 +776,7 @@ func permutation(valList []testVal) []testVal {
 func createNewValidatorList(testValList []testVal) []*Validator {
 	valList := make([]*Validator, 0, len(testValList))
 	for _, val := range testValList {
-		valList = append(valList, newValidator([]byte(val.name), val.power, true))
+		valList = append(valList, newValidator([]byte(val.name), val.power, false))
 	}
 	return valList
 }
@@ -1559,7 +1559,7 @@ func BenchmarkUpdates(b *testing.B) {
 	// Init with n validators
 	vs := make([]*Validator, n)
 	for j := 0; j < n; j++ {
-		vs[j] = newValidator([]byte(fmt.Sprintf("v%d", j)), 100, true)
+		vs[j] = newValidator([]byte(fmt.Sprintf("v%d", j)), 100, false)
 	}
 	valSet := NewValidatorSet(vs)
 	l := len(valSet.Validators)
@@ -1567,7 +1567,7 @@ func BenchmarkUpdates(b *testing.B) {
 	// Make m new validators
 	newValList := make([]*Validator, m)
 	for j := 0; j < m; j++ {
-		newValList[j] = newValidator([]byte(fmt.Sprintf("v%d", j+l)), 1000, true)
+		newValList[j] = newValidator([]byte(fmt.Sprintf("v%d", j+l)), 1000, false)
 	}
 	b.ResetTimer()
 
@@ -1580,7 +1580,7 @@ func BenchmarkUpdates(b *testing.B) {
 
 func TestVerifyCommitWithInvalidProposerKey(t *testing.T) {
 	vs := &ValidatorSet{
-		Validators: []*Validator{{CanPropose: true}, {CanPropose: true}},
+		Validators: []*Validator{{}, {}},
 	}
 	commit := &Commit{
 		Height:     100,

@@ -10,22 +10,22 @@ import (
 
 func TestReducedProposerSet(t *testing.T) {
 	vals := []*Validator{
-		newValidator([]byte("val1"), 100, true),
-		newValidator([]byte("val2"), 200, false),
-		newValidator([]byte("val3"), 300, true),
-		newValidator([]byte("val4"), 400, false),
+		newValidator([]byte("val1"), 100, false),
+		newValidator([]byte("val2"), 200, true),
+		newValidator([]byte("val3"), 300, false),
+		newValidator([]byte("val4"), 400, true),
 	}
 	vset := NewValidatorSet(vals)
 
-	// Initial proposer should have CanPropose=true
-	assert.True(t, vset.GetProposer().CanPropose)
+	// Initial proposer should have ProposeDisabled=false
+	assert.False(t, vset.GetProposer().ProposeDisabled)
 
 	// Track proposers over 100 rounds
 	proposers := make(map[string]int)
 	for i := 0; i < 100; i++ {
 		vset.IncrementProposerPriority(1)
 		p := vset.GetProposer()
-		assert.True(t, p.CanPropose)
+		assert.False(t, p.ProposeDisabled)
 		proposers[string(p.Address)]++
 	}
 
@@ -37,9 +37,9 @@ func TestReducedProposerSet(t *testing.T) {
 
 func TestSingleProposer(t *testing.T) {
 	vals := []*Validator{
-		newValidator([]byte("val1"), 100, false),
-		newValidator([]byte("val2"), 200, true), // Only proposer
-		newValidator([]byte("val3"), 300, false),
+		newValidator([]byte("val1"), 100, true),
+		newValidator([]byte("val2"), 200, false), // Only proposer
+		newValidator([]byte("val3"), 300, true),
 	}
 	vset := NewValidatorSet(vals)
 
@@ -52,8 +52,8 @@ func TestSingleProposer(t *testing.T) {
 
 func TestNoProposers(t *testing.T) {
 	vals := []*Validator{
-		newValidator([]byte("val1"), 100, false),
-		newValidator([]byte("val2"), 200, false),
+		newValidator([]byte("val1"), 100, true),
+		newValidator([]byte("val2"), 200, true),
 	}
 
 	// Panics when no validators can propose
@@ -64,9 +64,9 @@ func TestNoProposers(t *testing.T) {
 
 func TestProposerPriorityIncrementForAll(t *testing.T) {
 	vals := []*Validator{
-		newValidator([]byte("val1"), 100, true),
-		newValidator([]byte("val2"), 100, false),
-		newValidator([]byte("val3"), 100, true),
+		newValidator([]byte("val1"), 100, false),
+		newValidator([]byte("val2"), 100, true),
+		newValidator([]byte("val3"), 100, false),
 	}
 	vset := NewValidatorSet(vals)
 
@@ -87,7 +87,7 @@ func TestProposerPriorityIncrementForAll(t *testing.T) {
 	}
 }
 
-func TestCopyCanPropose(t *testing.T) {
+func TestCopyProposeDisabled(t *testing.T) {
 	vals := []*Validator{
 		newValidator([]byte("val1"), 100, true),
 		newValidator([]byte("val2"), 200, false),
@@ -98,9 +98,9 @@ func TestCopyCanPropose(t *testing.T) {
 	// Make a copy
 	vsetCopy := vset.Copy()
 
-	// Verify all validators maintain their CanPropose status
+	// Verify all validators maintain their ProposeDisabled status
 	for i, v := range vset.Validators {
-		assert.Equal(t, v.CanPropose, vsetCopy.Validators[i].CanPropose)
+		assert.Equal(t, v.ProposeDisabled, vsetCopy.Validators[i].ProposeDisabled)
 	}
 }
 
@@ -121,8 +121,8 @@ func TestAddOneToProposerSet(t *testing.T) {
 	// - proposer set: val1
 	// - additional validator: val2
 	vals := []*Validator{
-		newValidator([]byte("val1"), 100, true),
-		newValidator([]byte("val2"), 100, false),
+		newValidator([]byte("val1"), 100, false),
+		newValidator([]byte("val2"), 100, true),
 	}
 	vset := NewValidatorSet(vals)
 
@@ -130,7 +130,7 @@ func TestAddOneToProposerSet(t *testing.T) {
 	incrementAndLogProposerPriority(vset, 50, "Before adding val2 to proposer set")
 
 	// Add val2 to proposer set
-	findValidator(vset, []byte("val2")).CanPropose = true
+	findValidator(vset, []byte("val2")).ProposeDisabled = false
 
 	// Future proposer selection should be [val2, val2, val1, val2, val1, ...]
 	proposerSequence := incrementAndLogProposerPriority(vset, 100, "\nAfter adding val2 to proposer set")
@@ -151,10 +151,10 @@ func TestAddManyToProposerSet(t *testing.T) {
 	// - proposer set: val1
 	// - additional validators: val2, val3, val4
 	vals := []*Validator{
-		newValidator([]byte("val1"), 100, true),
-		newValidator([]byte("val2"), 100, false),
-		newValidator([]byte("val3"), 100, false),
-		newValidator([]byte("val4"), 100, false),
+		newValidator([]byte("val1"), 100, false),
+		newValidator([]byte("val2"), 100, true),
+		newValidator([]byte("val3"), 100, true),
+		newValidator([]byte("val4"), 100, true),
 	}
 	vset := NewValidatorSet(vals)
 
@@ -162,9 +162,9 @@ func TestAddManyToProposerSet(t *testing.T) {
 	incrementAndLogProposerPriority(vset, 50, "Before adding val2, val3, val4 to proposer set")
 
 	// Add val2, val3, val4 to proposer set
-	findValidator(vset, []byte("val2")).CanPropose = true
-	findValidator(vset, []byte("val3")).CanPropose = true
-	findValidator(vset, []byte("val4")).CanPropose = true
+	findValidator(vset, []byte("val2")).ProposeDisabled = false
+	findValidator(vset, []byte("val3")).ProposeDisabled = false
+	findValidator(vset, []byte("val4")).ProposeDisabled = false
 
 	// Afterwards,
 	// 1. First 6 selections should be round robin among val2, val3, val4
@@ -204,10 +204,10 @@ func TestAddManyToProposerSetDifferentPowers(t *testing.T) {
 	// - proposer set: val2, val3
 	// - additional validators: val1, val4
 	vals := []*Validator{
-		newValidator([]byte("val1"), 50, false),
-		newValidator([]byte("val2"), 500, true),
-		newValidator([]byte("val3"), 5000, true),
-		newValidator([]byte("val4"), 50000, false),
+		newValidator([]byte("val1"), 50, true),
+		newValidator([]byte("val2"), 500, false),
+		newValidator([]byte("val3"), 5000, false),
+		newValidator([]byte("val4"), 50000, true),
 	}
 	vset := NewValidatorSet(vals)
 
@@ -215,8 +215,8 @@ func TestAddManyToProposerSetDifferentPowers(t *testing.T) {
 	incrementAndLogProposerPriority(vset, 50, "Before adding val1, val4 to proposer set")
 
 	// Add val1, val4 to proposer set
-	findValidator(vset, []byte("val1")).CanPropose = true
-	findValidator(vset, []byte("val4")).CanPropose = true
+	findValidator(vset, []byte("val1")).ProposeDisabled = false
+	findValidator(vset, []byte("val4")).ProposeDisabled = false
 
 	// Run for some rounds
 	incrementAndLogProposerPriority(vset, 50, "\nAfter adding val1, val4 to proposer set")
@@ -240,7 +240,7 @@ func incrementAndLogProposerPriority(vset *ValidatorSet, rounds int, phase strin
 	divider := "------|----------"
 	for _, v := range vset.Validators {
 		header += fmt.Sprintf(" | %s(%d,%s)", string(v.Address), v.VotingPower,
-			map[bool]string{true: "T", false: "F"}[v.CanPropose])
+			map[bool]string{true: "T", false: "F"}[v.ProposeDisabled])
 		divider += "|" + strings.Repeat("-", 13)
 	}
 

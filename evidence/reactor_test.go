@@ -375,9 +375,9 @@ func exampleVote(t byte) *types.Vote {
 //nolint:lll //ignore line length for tests
 func TestEvidenceVectors(t *testing.T) {
 	val := &types.Validator{
-		Address:     crypto.AddressHash([]byte("validator_address")),
-		VotingPower: 10,
-		CanPropose:  true,
+		Address:         crypto.AddressHash([]byte("validator_address")),
+		VotingPower:     10,
+		ProposeDisabled: false,
 	}
 
 	valSet := types.NewValidatorSet([]*types.Validator{val})

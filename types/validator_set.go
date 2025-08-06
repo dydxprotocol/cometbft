@@ -219,7 +219,7 @@ func (vals *ValidatorSet) getValWithMostPriority() *Validator {
 	var res *Validator
 	for _, val := range vals.Validators {
 		// Only consider validators that can propose
-		if val.CanPropose {
+		if !val.ProposeDisabled {
 			res = res.CompareProposerPriority(val)
 		}
 	}
@@ -343,7 +343,7 @@ func (vals *ValidatorSet) findProposer() *Validator {
 	var proposer *Validator
 	for _, val := range vals.Validators {
 		// Only consider validators that can propose
-		if val.CanPropose && (proposer == nil || !bytes.Equal(val.Address, proposer.Address)) {
+		if !val.ProposeDisabled && (proposer == nil || !bytes.Equal(val.Address, proposer.Address)) {
 			proposer = proposer.CompareProposerPriority(val)
 		}
 	}
@@ -723,7 +723,7 @@ func (vals *ValidatorSet) findPreviousProposer() *Validator {
 	var previousProposer *Validator
 	for _, val := range vals.Validators {
 		// Only consider validators that can propose
-		if !val.CanPropose {
+		if val.ProposeDisabled {
 			continue
 		}
 		if previousProposer == nil {

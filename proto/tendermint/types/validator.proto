@@ -29,11 +29,11 @@ message Validator {
   tendermint.crypto.PublicKey pub_key           = 2 [(gogoproto.nullable) = false];
   int64                       voting_power      = 3;
   int64                       proposer_priority = 4;
-  bool                        can_propose       = 5;
+  bool                        propose_disabled       = 5;
 }
 
 message SimpleValidator {
   tendermint.crypto.PublicKey pub_key      = 1;
   int64                       voting_power = 2;
-  bool                        can_propose  = 3;
+  bool                        propose_disabled  = 3;
 }

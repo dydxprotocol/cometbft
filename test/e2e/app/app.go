@@ -616,7 +616,7 @@ func (app *Application) validatorUpdates(height uint64) (abci.ValidatorUpdates, 
 		if err != nil {
 			return nil, fmt.Errorf("invalid base64 pubkey value %q: %w", keyString, err)
 		}
-		valUpdate := abci.UpdateValidator(keyBytes, int64(power), app.cfg.KeyType, true)
+		valUpdate := abci.UpdateValidator(keyBytes, int64(power), app.cfg.KeyType, false)
 		valUpdates = append(valUpdates, valUpdate)
 		if err := app.storeValidator(&valUpdate); err != nil {
 			return nil, err

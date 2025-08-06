@@ -16,10 +16,10 @@ import (
 // NOTE: The ProposerPriority is not included in Validator.Hash();
 // make sure to update that method if changes are made here
 type Validator struct {
-	Address     Address       `json:"address"`
-	PubKey      crypto.PubKey `json:"pub_key"`
-	VotingPower int64         `json:"voting_power"`
-	CanPropose  bool          `json:"can_propose"`
+	Address         Address       `json:"address"`
+	PubKey          crypto.PubKey `json:"pub_key"`
+	VotingPower     int64         `json:"voting_power"`
+	ProposeDisabled bool          `json:"propose_disabled"`
 
 	ProposerPriority int64 `json:"proposer_priority"`
 }
@@ -28,13 +28,13 @@ type Validator struct {
 func NewValidator(
 	pubKey crypto.PubKey,
 	votingPower int64,
-	canPropose bool,
+	proposeDisabled bool,
 ) *Validator {
 	return &Validator{
 		Address:          pubKey.Address(),
 		PubKey:           pubKey,
 		VotingPower:      votingPower,
-		CanPropose:       canPropose,
+		ProposeDisabled:  proposeDisabled,
 		ProposerPriority: 0,
 	}
 }
@@ -106,7 +106,7 @@ func (v *Validator) String() string {
 		v.PubKey,
 		v.VotingPower,
 		v.ProposerPriority,
-		v.CanPropose,
+		v.ProposeDisabled,
 	)
 }
 
@@ -131,9 +131,9 @@ func (v *Validator) Bytes() []byte {
 	}
 
 	pbv := cmtproto.SimpleValidator{
-		PubKey:      &pk,
-		VotingPower: v.VotingPower,
-		CanPropose:  v.CanPropose,
+		PubKey:          &pk,
+		VotingPower:     v.VotingPower,
+		ProposeDisabled: v.ProposeDisabled,
 	}
 
 	bz, err := pbv.Marshal()
@@ -159,7 +159,7 @@ func (v *Validator) ToProto() (*cmtproto.Validator, error) {
 		PubKey:           pk,
 		VotingPower:      v.VotingPower,
 		ProposerPriority: v.ProposerPriority,
-		CanPropose:       v.CanPropose,
+		ProposeDisabled:  v.ProposeDisabled,
 	}
 
 	return &vp, nil
@@ -180,7 +180,7 @@ func ValidatorFromProto(vp *cmtproto.Validator) (*Validator, error) {
 	v.Address = vp.GetAddress()
 	v.PubKey = pk
 	v.VotingPower = vp.GetVotingPower()
-	v.CanPropose = vp.GetCanPropose()
+	v.ProposeDisabled = vp.GetProposeDisabled()
 	v.ProposerPriority = vp.GetProposerPriority()
 
 	return v, nil
@@ -201,6 +201,6 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	if err != nil {
 		panic(fmt.Errorf("could not retrieve pubkey %w", err))
 	}
-	val := NewValidator(pubKey, votePower, true)
+	val := NewValidator(pubKey, votePower, false)
 	return val, privVal
 }

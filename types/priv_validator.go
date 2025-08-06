@@ -117,10 +117,10 @@ func (pv MockPV) SignProposal(chainID string, proposal *cmtproto.Proposal) error
 func (pv MockPV) ExtractIntoValidator(votingPower int64) *Validator {
 	pubKey, _ := pv.GetPubKey()
 	return &Validator{
-		Address:     pubKey.Address(),
-		PubKey:      pubKey,
-		VotingPower: votingPower,
-		CanPropose:  true, // default to true for MockPV testing
+		Address:         pubKey.Address(),
+		PubKey:          pubKey,
+		VotingPower:     votingPower,
+		ProposeDisabled: false, // default to false for MockPV testing
 	}
 }
 

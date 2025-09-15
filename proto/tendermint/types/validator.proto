@@ -35,5 +35,4 @@ message Validator {
 message SimpleValidator {
   tendermint.crypto.PublicKey pub_key      = 1;
   int64                       voting_power = 2;
-  bool                        propose_disabled  = 3;
 }

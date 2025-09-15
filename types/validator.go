@@ -131,9 +131,8 @@ func (v *Validator) Bytes() []byte {
 	}
 
 	pbv := cmtproto.SimpleValidator{
-		PubKey:          &pk,
-		VotingPower:     v.VotingPower,
-		ProposeDisabled: v.ProposeDisabled,
+		PubKey:      &pk,
+		VotingPower: v.VotingPower,
 	}
 
 	bz, err := pbv.Marshal()

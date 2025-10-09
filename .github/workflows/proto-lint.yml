@@ -3,11 +3,6 @@ on:
   pull_request:
     paths:
       - 'proto/**'
-  push:
-    branches:
-      - v0.38.x
-    paths:
-      - 'proto/**'
 
 jobs:
   lint:

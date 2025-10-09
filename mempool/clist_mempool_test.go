@@ -222,7 +222,7 @@ func TestMempoolFilters(t *testing.T) {
 		{10, PreCheckMaxBytes(22), PostCheckMaxGas(0), 0},
 	}
 	for tcIndex, tt := range tests {
-		err := mp.Update(1, emptyTxArr, abciResponses(len(emptyTxArr), abci.CodeTypeOK), tt.preFilter, tt.postFilter)
+		err := mp.Update(1, time.UnixMilli(1), emptyTxArr, abciResponses(len(emptyTxArr), abci.CodeTypeOK), tt.preFilter, tt.postFilter)
 		require.NoError(t, err)
 		addRandomTxs(t, mp, tt.numTxsToCreate, UnknownPeerID)
 		require.Equal(t, tt.expectedNumTxs, mp.Size(), "mempool had the incorrect size, on test case %d", tcIndex)
@@ -234,12 +234,14 @@ func TestMempoolUpdate(t *testing.T) {
 	app := kvstore.NewInMemoryApplication()
 	cc := proxy.NewLocalClientCreator(app)
 	mp, cleanup := newMempoolWithApp(cc)
+	// dYdX fork: The default is true but this test expects that the default is false.
+	mp.config.KeepInvalidTxsInCache = false
 	defer cleanup()
 
 	// 1. Adds valid txs to the cache
 	{
 		tx1 := kvstore.NewTxFromID(1)
-		err := mp.Update(1, []types.Tx{tx1}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+		err := mp.Update(1, time.UnixMilli(1), []types.Tx{tx1}, abciResponses(1, abci.CodeTypeOK), nil, nil)
 		require.NoError(t, err)
 		err = mp.CheckTx(tx1, nil, TxInfo{})
 		if assert.Error(t, err) {
@@ -252,7 +254,7 @@ func TestMempoolUpdate(t *testing.T) {
 		tx2 := kvstore.NewTxFromID(2)
 		err := mp.CheckTx(tx2, nil, TxInfo{})
 		require.NoError(t, err)
-		err = mp.Update(1, []types.Tx{tx2}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+		err = mp.Update(1, time.UnixMilli(1), []types.Tx{tx2}, abciResponses(1, abci.CodeTypeOK), nil, nil)
 		require.NoError(t, err)
 		assert.Zero(t, mp.Size())
 	}
@@ -262,7 +264,7 @@ func TestMempoolUpdate(t *testing.T) {
 		tx3 := kvstore.NewTxFromID(3)
 		err := mp.CheckTx(tx3, nil, TxInfo{})
 		require.NoError(t, err)
-		err = mp.Update(1, []types.Tx{tx3}, abciResponses(1, 1), nil, nil)
+		err = mp.Update(1, time.UnixMilli(1), []types.Tx{tx3}, abciResponses(1, 1), nil, nil)
 		require.NoError(t, err)
 		assert.Zero(t, mp.Size())
 
@@ -301,7 +303,7 @@ func TestMempoolUpdateDoesNotPanicWhenApplicationMissedTx(t *testing.T) {
 
 	// Calling update to remove the first transaction from the mempool.
 	// This call also triggers the mempool to recheck its remaining transactions.
-	err = mp.Update(0, []types.Tx{txs[0]}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+	err = mp.Update(0, time.UnixMilli(0), []types.Tx{txs[0]}, abciResponses(1, abci.CodeTypeOK), nil, nil)
 	require.Nil(t, err)
 
 	// The mempool has now sent its requests off to the client to be rechecked
@@ -343,7 +345,7 @@ func TestMempool_KeepInvalidTxsInCache(t *testing.T) {
 			Txs: [][]byte{a, b},
 		})
 		require.NoError(t, err)
-		err = mp.Update(1, []types.Tx{a, b},
+		err = mp.Update(1, time.UnixMilli(1), []types.Tx{a, b},
 			[]*abci.ExecTxResult{{Code: abci.CodeTypeOK}, {Code: 2}}, nil, nil)
 		require.NoError(t, err)
 
@@ -394,7 +396,7 @@ func TestTxsAvailable(t *testing.T) {
 	// it should fire once now for the new height
 	// since there are still txs left
 	committedTxs, remainingTxs := txs[:50], txs[50:]
-	if err := mp.Update(1, committedTxs, abciResponses(len(committedTxs), abci.CodeTypeOK), nil, nil); err != nil {
+	if err := mp.Update(1, time.UnixMilli(1), committedTxs, abciResponses(len(committedTxs), abci.CodeTypeOK), nil, nil); err != nil {
 		t.Error(err)
 	}
 	ensureFire(t, mp.TxsAvailable(), timeoutMS)
@@ -406,7 +408,7 @@ func TestTxsAvailable(t *testing.T) {
 
 	// now call update with all the txs. it should not fire as there are no txs left
 	committedTxs = append(remainingTxs, moreTxs...)
-	if err := mp.Update(2, committedTxs, abciResponses(len(committedTxs), abci.CodeTypeOK), nil, nil); err != nil {
+	if err := mp.Update(2, time.UnixMilli(2), committedTxs, abciResponses(len(committedTxs), abci.CodeTypeOK), nil, nil); err != nil {
 		t.Error(err)
 	}
 	ensureNoFire(t, mp.TxsAvailable(), timeoutMS)
@@ -459,7 +461,7 @@ func TestSerialReap(t *testing.T) {
 		for i := start; i < end; i++ {
 			txs[i-start] = kvstore.NewTx(fmt.Sprintf("%d", i), "true")
 		}
-		if err := mp.Update(0, txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil); err != nil {
+		if err := mp.Update(0, time.UnixMilli(0), txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil); err != nil {
 			t.Error(err)
 		}
 	}
@@ -592,7 +594,7 @@ func TestMempoolTxsBytes(t *testing.T) {
 	assert.EqualValues(t, 10, mp.SizeBytes())
 
 	// 3. zero again after tx is removed by Update
-	err = mp.Update(1, []types.Tx{tx1}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+	err = mp.Update(1, time.UnixMilli(1), []types.Tx{tx1}, abciResponses(1, abci.CodeTypeOK), nil, nil)
 	require.NoError(t, err)
 	assert.EqualValues(t, 0, mp.SizeBytes())
 
@@ -648,7 +650,7 @@ func TestMempoolTxsBytes(t *testing.T) {
 	require.NoError(t, err)
 
 	// Pretend like we committed nothing so txBytes gets rechecked and removed.
-	err = mp.Update(1, []types.Tx{}, abciResponses(0, abci.CodeTypeOK), nil, nil)
+	err = mp.Update(1, time.UnixMilli(1), []types.Tx{}, abciResponses(0, abci.CodeTypeOK), nil, nil)
 	require.NoError(t, err)
 	assert.EqualValues(t, 10, mp.SizeBytes())
 
@@ -746,7 +748,8 @@ func TestMempoolConcurrentUpdateAndReceiveCheckTxResponse(t *testing.T) {
 		go func(h int) {
 			defer wg.Done()
 
-			doUpdate(t, mp, int64(h), []types.Tx{tx})
+			err := mp.Update(int64(h), time.UnixMilli(1), []types.Tx{tx}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+			require.NoError(t, err)
 			require.Equal(t, int64(h), mp.height.Load(), "height mismatch")
 		}(h)
 
@@ -789,7 +792,7 @@ func TestMempoolNotifyTxsAvailable(t *testing.T) {
 	require.Empty(t, mp.TxsAvailable())
 
 	// Updating the pool will remove the tx and set the variable to false
-	err := mp.Update(1, []types.Tx{tx}, abciResponses(1, abci.CodeTypeOK), nil, nil)
+	err := mp.Update(1, time.UnixMilli(1), []types.Tx{tx}, abciResponses(1, abci.CodeTypeOK), nil, nil)
 	require.NoError(t, err)
 	require.Zero(t, mp.Size())
 	require.False(t, mp.notifiedTxsAvailable.Load())
@@ -1040,7 +1043,7 @@ func doUpdate(tb testing.TB, mp Mempool, height int64, txs []types.Tx) {
 	mp.Lock()
 	err := mp.FlushAppConn()
 	require.NoError(tb, err)
-	err = mp.Update(height, txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil)
+	err = mp.Update(height, time.UnixMilli(1), txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil)
 	require.NoError(tb, err)
 	mp.Unlock()
 }

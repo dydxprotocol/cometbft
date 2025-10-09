@@ -26,6 +26,8 @@ import (
 type CListMempool struct {
 	height   atomic.Int64 // the last block Update()'d to
 	txsBytes atomic.Int64 // total size of mempool, in bytes
+	// the last block timestamp Update()'d to. Note that we want to use a pointer here to ensure that each new assignment points to a different instance of the timestamp.
+	timestamp atomic.Pointer[time.Time]
 
 	// notify listeners (ie. consensus) when txs are available
 	notifiedTxsAvailable atomic.Bool
@@ -70,6 +72,7 @@ func NewCListMempool(
 	height int64,
 	options ...CListMempoolOption,
 ) *CListMempool {
+	timestamp := time.Unix(0, 0)
 	mp := &CListMempool{
 		config:       cfg,
 		proxyAppConn: proxyAppConn,
@@ -79,6 +82,7 @@ func NewCListMempool(
 		metrics:      NopMetrics(),
 	}
 	mp.height.Store(height)
+	mp.timestamp.Store(&timestamp)
 
 	if cfg.CacheSize > 0 {
 		mp.cache = NewLRUTxCache(cfg.CacheSize)
@@ -439,6 +443,7 @@ func (mem *CListMempool) resCbFirstTime(
 			memTx := &mempoolTx{
 				height:    mem.height.Load(),
 				gasWanted: r.CheckTx.GasWanted,
+				timestamp: *mem.timestamp.Load(),
 				tx:        tx,
 			}
 			memTx.addSender(txInfo.SenderID)
@@ -450,6 +455,18 @@ func (mem *CListMempool) resCbFirstTime(
 				"height", mem.height.Load(),
 				"total", mem.Size(),
 			)
+
+			// If this transaction is a short term `PlaceOrder` or `CancelOrder` transaction,
+			// don't call `notifyTxsAvailable()`. The `notifyTxsAvailable()` function
+			// uses a channel in the mempool called `txsAvailable` to signal to the
+			// consensus algorithm that transactions are available to be included in
+			// the next proposal. If no transactions are available for inclusion in
+			// the next proposal, the consensus algorithm will wait for `create_empty_blocks_interval`
+			// before proposing an empty block instead.
+			if IsShortTermClobOrderTransaction(memTx.tx, mem.logger) {
+				return
+			}
+
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
@@ -537,6 +554,13 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 
+		// If this transaction is Cosmos transaction containing a
+		// short term `PlaceOrder` or `CancelOrder` message,
+		// don't include it in the next proposed block.
+		if IsShortTermClobOrderTransaction(memTx.tx, mem.logger) {
+			continue
+		}
+
 		txs = append(txs, memTx.tx)
 
 		dataSize := types.ComputeProtoSizeForTxs([]types.Tx{memTx.tx})
@@ -581,6 +605,7 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 // Lock() must be help by the caller during execution.
 func (mem *CListMempool) Update(
 	height int64,
+	timestamp time.Time,
 	txs types.Txs,
 	txResults []*abci.ExecTxResult,
 	preCheck PreCheckFunc,
@@ -591,6 +616,7 @@ func (mem *CListMempool) Update(
 	// Set height
 	mem.height.Store(height)
 	mem.notifiedTxsAvailable.Store(false)
+	mem.timestamp.Store(&timestamp)
 
 	if preCheck != nil {
 		mem.preCheck = preCheck
@@ -630,7 +656,10 @@ func (mem *CListMempool) Update(
 		mem.recheckTxs()
 	}
 
-	// Notify if there are still txs left in the mempool.
+	mem.purgeExpiredTxs(height, timestamp)
+
+	// Either recheck non-committed txs to see if they became invalid
+	// or just notify there're some txs left.
 	if mem.Size() > 0 {
 		mem.notifyTxsAvailable()
 	}
@@ -642,6 +671,36 @@ func (mem *CListMempool) Update(
 	return nil
 }
 
+// purgeExpiredTxs removes all transactions from the mempool that have exceeded
+// their respective height or time-based limits as of the given blockHeight.
+// Transactions removed by this operation are not removed from the cache.
+//
+// Lock() must be help by the caller during execution.
+func (mem *CListMempool) purgeExpiredTxs(blockHeight int64, blockTime time.Time) {
+	if mem.config.TTLNumBlocks == 0 && mem.config.TTLDuration == 0 {
+		return // nothing to do
+	}
+
+	for e := mem.txs.Front(); e != nil; e = e.Next() {
+		memTx := e.Value.(*mempoolTx)
+		// If this transaction is Cosmos transaction containing a `PlaceOrder` or `CancelOrder` message,
+		// remove it from the mempool instead of rechecking.
+		if mem.config.TTLNumBlocks > 0 && (blockHeight-memTx.Height()) > mem.config.TTLNumBlocks {
+			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
+				mem.logger.Debug("Block TTL: Transaction could not be removed from mempool", "err", err)
+			} else {
+				mem.metrics.PurgedNumBlocksTxs.Add(1)
+			}
+		} else if mem.config.TTLDuration > 0 && blockTime.Sub(memTx.Timestamp()) > mem.config.TTLDuration {
+			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
+				mem.logger.Debug("Duration TTL: Transaction could not be removed from mempool", "err", err)
+			} else {
+				mem.metrics.PurgedDurationTxs.Add(1)
+			}
+		}
+	}
+}
+
 // recheckTxs sends all transactions in the mempool to the app for re-validation. When the function
 // returns, all recheck responses from the app have been processed.
 func (mem *CListMempool) recheckTxs() {
@@ -651,6 +710,17 @@ func (mem *CListMempool) recheckTxs() {
 		return
 	}
 
+	for e := mem.txs.Front(); e != nil; e = e.Next() {
+		memTx := e.Value.(*mempoolTx)
+		// If this transaction is Cosmos transaction containing a
+		// short term `PlaceOrder` or `CancelOrder` message,
+		// remove it from the mempool instead of rechecking.
+		if IsShortTermClobOrderTransaction(memTx.tx, mem.logger) {
+			if err := mem.RemoveTxByKey(memTx.tx.Key()); err != nil {
+				mem.logger.Debug("Recheck failed to remove short term CLOB transaction from mempool", "err", err)
+			}
+		}
+	}
 	mem.recheck.init(mem.txs.Front(), mem.txs.Back())
 
 	// NOTE: globalCb may be called concurrently, but CheckTx cannot be executed concurrently

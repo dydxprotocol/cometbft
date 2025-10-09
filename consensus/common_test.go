@@ -284,7 +284,9 @@ func validatePrevote(t *testing.T, cs *State, round int32, privVal *validatorStu
 			panic(fmt.Sprintf("Expected prevote to be for nil, got %X", vote.BlockID.Hash))
 		}
 	} else {
-		if !bytes.Equal(vote.BlockID.Hash, blockHash) {
+		if vote.BlockID.Hash == nil {
+			panic(fmt.Sprintf("Expected prevote to be for %X, got <nil>", blockHash))
+		} else if !bytes.Equal(vote.BlockID.Hash, blockHash) {
 			panic(fmt.Sprintf("Expected prevote to be for %X, got %X", blockHash, vote.BlockID.Hash))
 		}
 	}
@@ -521,13 +523,6 @@ func ensureNoNewRoundStep(stepCh <-chan cmtpubsub.Message) {
 		"We should be stuck waiting, not receiving NewRoundStep event")
 }
 
-func ensureNoNewUnlock(unlockCh <-chan cmtpubsub.Message) {
-	ensureNoNewEvent(
-		unlockCh,
-		ensureTimeout,
-		"We should be stuck waiting, not receiving Unlock event")
-}
-
 func ensureNoNewTimeout(stepCh <-chan cmtpubsub.Message, timeout int64) {
 	timeoutDuration := time.Duration(timeout*10) * time.Nanosecond
 	ensureNoNewEvent(
@@ -640,9 +635,14 @@ func ensureNewBlockHeader(blockCh <-chan cmtpubsub.Message, height int64, blockH
 	}
 }
 
-func ensureNewUnlock(unlockCh <-chan cmtpubsub.Message, height int64, round int32) {
-	ensureNewEvent(unlockCh, height, round, ensureTimeout,
-		"Timeout expired while waiting for NewUnlock event")
+func ensureLock(lockCh <-chan cmtpubsub.Message, height int64, round int32) {
+	ensureNewEvent(lockCh, height, round, ensureTimeout,
+		"Timeout expired while waiting for LockValue event")
+}
+
+func ensureRelock(relockCh <-chan cmtpubsub.Message, height int64, round int32) {
+	ensureNewEvent(relockCh, height, round, ensureTimeout,
+		"Timeout expired while waiting for RelockValue event")
 }
 
 func ensureProposal(proposalCh <-chan cmtpubsub.Message, height int64, round int32, propID types.BlockID) {
@@ -778,6 +778,8 @@ func randConsensusNet(t *testing.T, nValidators int, testName string, tickerFunc
 		})
 		state, _ := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
+		// Set timeout to 0 so `skipTimeoutCommit = true` during test.
+		thisConfig.Consensus.TimeoutCommit = 0
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		for _, opt := range configOpts {
 			opt(thisConfig)
@@ -822,6 +824,9 @@ func randConsensusNetWithPeers(
 		t.Cleanup(func() { _ = stateStore.Close() })
 		state, _ := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 		thisConfig := ResetConfig(fmt.Sprintf("%s_%d", testName, i))
+		// Set timeout to 0 so `skipTimeoutCommit = true` during test.
+		thisConfig.Consensus.TimeoutCommit = 0
+
 		configRootDirs = append(configRootDirs, thisConfig.RootDir)
 		ensureDir(filepath.Dir(thisConfig.Consensus.WalFile()), 0o700) // dir for wal
 		if i == 0 {

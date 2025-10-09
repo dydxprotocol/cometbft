@@ -1,11 +1,6 @@
 name: Test
 on:
   pull_request:
-  push:
-    paths:
-      - "**.go"
-    branches:
-      - v0.38.x
 
 jobs:
   tests:

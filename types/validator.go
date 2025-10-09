@@ -16,19 +16,25 @@ import (
 // NOTE: The ProposerPriority is not included in Validator.Hash();
 // make sure to update that method if changes are made here
 type Validator struct {
-	Address     Address       `json:"address"`
-	PubKey      crypto.PubKey `json:"pub_key"`
-	VotingPower int64         `json:"voting_power"`
+	Address         Address       `json:"address"`
+	PubKey          crypto.PubKey `json:"pub_key"`
+	VotingPower     int64         `json:"voting_power"`
+	ProposeDisabled bool          `json:"propose_disabled"`
 
 	ProposerPriority int64 `json:"proposer_priority"`
 }
 
 // NewValidator returns a new validator with the given pubkey and voting power.
-func NewValidator(pubKey crypto.PubKey, votingPower int64) *Validator {
+func NewValidator(
+	pubKey crypto.PubKey,
+	votingPower int64,
+	proposeDisabled bool,
+) *Validator {
 	return &Validator{
 		Address:          pubKey.Address(),
 		PubKey:           pubKey,
 		VotingPower:      votingPower,
+		ProposeDisabled:  proposeDisabled,
 		ProposerPriority: 0,
 	}
 }
@@ -94,11 +100,13 @@ func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
 	}
-	return fmt.Sprintf("Validator{%v %v VP:%v A:%v}",
+	return fmt.Sprintf("Validator{%v %v VP:%v A:%v CP:%v}",
 		v.Address,
 		v.PubKey,
 		v.VotingPower,
-		v.ProposerPriority)
+		v.ProposerPriority,
+		v.ProposeDisabled,
+	)
 }
 
 // ValidatorListString returns a prettified validator list for logging purposes.
@@ -149,6 +157,7 @@ func (v *Validator) ToProto() (*cmtproto.Validator, error) {
 		PubKey:           pk,
 		VotingPower:      v.VotingPower,
 		ProposerPriority: v.ProposerPriority,
+		ProposeDisabled:  v.ProposeDisabled,
 	}
 
 	return &vp, nil
@@ -169,6 +178,7 @@ func ValidatorFromProto(vp *cmtproto.Validator) (*Validator, error) {
 	v.Address = vp.GetAddress()
 	v.PubKey = pk
 	v.VotingPower = vp.GetVotingPower()
+	v.ProposeDisabled = vp.GetProposeDisabled()
 	v.ProposerPriority = vp.GetProposerPriority()
 
 	return v, nil
@@ -189,6 +199,6 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	if err != nil {
 		panic(fmt.Errorf("could not retrieve pubkey %w", err))
 	}
-	val := NewValidator(pubKey, votePower)
+	val := NewValidator(pubKey, votePower, false)
 	return val, privVal
 }

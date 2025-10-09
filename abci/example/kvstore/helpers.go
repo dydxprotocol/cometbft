@@ -17,7 +17,7 @@ import (
 func RandVal() types.ValidatorUpdate {
 	pubkey := cmtrand.Bytes(32)
 	power := cmtrand.Uint16() + 1
-	v := types.UpdateValidator(pubkey, int64(power), "")
+	v := types.UpdateValidator(pubkey, int64(power), "", true)
 	return v
 }
 

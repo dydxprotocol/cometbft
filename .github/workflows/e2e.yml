@@ -4,9 +4,6 @@ name: e2e
 on:
   workflow_dispatch:  # allow running workflow manually
   pull_request:
-  push:
-    branches:
-      - v0.38.x
 
 jobs:
   e2e-test:

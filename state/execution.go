@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -199,6 +200,9 @@ func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) e
 func (blockExec *BlockExecutor) ApplyVerifiedBlock(
 	state State, blockID types.BlockID, block *types.Block,
 ) (State, error) {
+	// Lock the mempool.
+	blockExec.mempool.Lock()
+	defer blockExec.mempool.Unlock()
 	return blockExec.applyBlock(state, blockID, block)
 }
 
@@ -208,9 +212,22 @@ func (blockExec *BlockExecutor) ApplyVerifiedBlock(
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
+// ApplyBlock locks the mempool, which effectively locks the mempool for BeginBlock,
+// DeliverTx, EndBlock, and Commit.
 func (blockExec *BlockExecutor) ApplyBlock(
 	state State, blockID types.BlockID, block *types.Block,
 ) (State, error) {
+	// Lock the mempool.
+	blockExec.mempool.Lock()
+	defer blockExec.mempool.Unlock()
+
+	// while mempool is Locked, flush to ensure all async requests have completed
+	// in the ABCI app before Commit.
+	err := blockExec.mempool.FlushAppConn()
+	if err != nil {
+		blockExec.logger.Error("client error during mempool.FlushAppConn", "err", err)
+		return state, err
+	}
 
 	if err := validateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
@@ -278,6 +295,11 @@ func (blockExec *BlockExecutor) applyBlock(state State, blockID types.BlockID, b
 	}
 	if abciResponse.ConsensusParamUpdates != nil {
 		blockExec.metrics.ConsensusParamUpdates.Add(1)
+	}
+
+	err = validateNextBlockDelay(abciResponse.NextBlockDelay)
+	if err != nil {
+		return state, fmt.Errorf("error in next block delay: %w", err)
 	}
 
 	// Update the state with the block and responses.
@@ -389,17 +411,6 @@ func (blockExec *BlockExecutor) Commit(
 	block *types.Block,
 	abciResponse *abci.ResponseFinalizeBlock,
 ) (int64, error) {
-	blockExec.mempool.Lock()
-	defer blockExec.mempool.Unlock()
-
-	// while mempool is Locked, flush to ensure all async requests have completed
-	// in the ABCI app before Commit.
-	err := blockExec.mempool.FlushAppConn()
-	if err != nil {
-		blockExec.logger.Error("client error during mempool.FlushAppConn", "err", err)
-		return 0, err
-	}
-
 	// Commit block, get hash back
 	res, err := blockExec.proxyApp.Commit(context.TODO())
 	if err != nil {
@@ -417,6 +428,7 @@ func (blockExec *BlockExecutor) Commit(
 	// Update mempool.
 	err = blockExec.mempool.Update(
 		block.Height,
+		block.Time,
 		block.Txs,
 		abciResponse.TxResults,
 		TxPreCheck(state),
@@ -589,6 +601,13 @@ func validateValidatorUpdates(abciUpdates []abci.ValidatorUpdate,
 	return nil
 }
 
+func validateNextBlockDelay(nextBlockDelay time.Duration) error {
+	if nextBlockDelay < 0 {
+		return errors.New("negative duration")
+	}
+	return nil
+}
+
 // updateState returns a new State updated according to the header and responses.
 func updateState(
 	state State,
@@ -657,6 +676,7 @@ func updateState(
 		LastHeightConsensusParamsChanged: lastHeightParamsChanged,
 		LastResultsHash:                  TxResultsHash(abciResponse.TxResults),
 		AppHash:                          nil,
+		NextBlockDelay:                   abciResponse.NextBlockDelay,
 	}, nil
 }
 

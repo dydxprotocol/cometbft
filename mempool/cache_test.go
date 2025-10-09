@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"testing"
+	"time"
 
 	"fmt"
 
@@ -75,7 +76,7 @@ func TestCacheAfterUpdate(t *testing.T) {
 			tx := kvstore.NewTx(fmt.Sprintf("%d", v), "value")
 			updateTxs = append(updateTxs, tx)
 		}
-		err := mp.Update(int64(tcIndex), updateTxs, abciResponses(len(updateTxs), abci.CodeTypeOK), nil, nil)
+		err := mp.Update(int64(tcIndex), time.UnixMilli(int64(tcIndex)), updateTxs, abciResponses(len(updateTxs), abci.CodeTypeOK), nil, nil)
 		require.NoError(t, err)
 
 		for _, v := range tc.reAddIndices {

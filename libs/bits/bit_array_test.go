@@ -12,6 +12,13 @@ import (
 	cmtrand "github.com/cometbft/cometbft/libs/rand"
 )
 
+var (
+	empty16Bits = "________________"
+	empty64Bits = empty16Bits + empty16Bits + empty16Bits + empty16Bits
+	full16bits  = "xxxxxxxxxxxxxxxx"
+	full64bits  = full16bits + full16bits + full16bits + full16bits
+)
+
 func randBitArray(bits int) (*BitArray, []byte) {
 	src := cmtrand.Bytes((bits + 7) / 8)
 	bA := NewBitArray(bits)

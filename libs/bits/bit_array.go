@@ -3,6 +3,7 @@ package bits
 import (
 	"encoding/binary"
 	"fmt"
+	"math/bits"
 	"regexp"
 	"strings"
 	"sync"
@@ -27,11 +28,31 @@ func NewBitArray(bits int) *BitArray {
 	}
 	return &BitArray{
 		Bits:  bits,
-		Elems: make([]uint64, (bits+63)/64),
+		Elems: make([]uint64, numElements(bits)),
 	}
 }
 
-// Size returns the number of bits in the bitarray
+// NewBitArrayFromFn returns a new bit array.
+// It returns nil if the number of bits is zero.
+// It initializes the `i`th bit to the value of `fn(i)`.
+func NewBitArrayFromFn(bits int, fn func(int) bool) *BitArray {
+	if bits <= 0 {
+		return nil
+	}
+	bA := &BitArray{
+		Bits:  bits,
+		Elems: make([]uint64, numElements(bits)),
+	}
+	for i := 0; i < bits; i++ {
+		v := fn(i)
+		if v {
+			bA.Elems[i/64] |= (uint64(1) << uint(i%64))
+		}
+	}
+	return bA
+}
+
+// Size returns the number of bits in the bitarray.
 func (bA *BitArray) Size() int {
 	if bA == nil {
 		return 0
@@ -69,7 +90,7 @@ func (bA *BitArray) SetIndex(i int, v bool) bool {
 }
 
 func (bA *BitArray) setIndex(i int, v bool) bool {
-	if i >= bA.Bits {
+	if i >= bA.Bits || i/64 >= len(bA.Elems) {
 		return false
 	}
 	if v {
@@ -100,7 +121,7 @@ func (bA *BitArray) copy() *BitArray {
 }
 
 func (bA *BitArray) copyBits(bits int) *BitArray {
-	c := make([]uint64, (bits+63)/64)
+	c := make([]uint64, numElements(bits))
 	copy(c, bA.Elems)
 	return &BitArray{
 		Bits:  bits,
@@ -247,44 +268,74 @@ func (bA *BitArray) PickRandom() (int, bool) {
 	}
 
 	bA.mtx.Lock()
-	trueIndices := bA.getTrueIndices()
-	bA.mtx.Unlock()
-
-	if len(trueIndices) == 0 { // no bits set to true
+	numTrueIndices := bA.getNumTrueIndices()
+	if numTrueIndices == 0 { // no bits set to true
+		bA.mtx.Unlock()
 		return 0, false
 	}
-
-	return trueIndices[cmtrand.Intn(len(trueIndices))], true
+	index := bA.getNthTrueIndex(cmtrand.Intn(numTrueIndices))
+	bA.mtx.Unlock()
+	if index == -1 {
+		return 0, false
+	}
+	return index, true
 }
 
-func (bA *BitArray) getTrueIndices() []int {
-	trueIndices := make([]int, 0, bA.Bits)
-	curBit := 0
+func (bA *BitArray) getNumTrueIndices() int {
+	if bA.Size() == 0 || len(bA.Elems) == 0 || len(bA.Elems) != numElements(bA.Size()) {
+		// size and elements must be valid to do this calc
+		return 0
+	}
+
+	count := 0
 	numElems := len(bA.Elems)
-	// set all true indices
+	// handle all elements except the last one
 	for i := 0; i < numElems-1; i++ {
-		elem := bA.Elems[i]
-		if elem == 0 {
-			curBit += 64
-			continue
-		}
-		for j := 0; j < 64; j++ {
-			if (elem & (uint64(1) << uint64(j))) > 0 {
-				trueIndices = append(trueIndices, curBit)
-			}
-			curBit++
-		}
+		count += bits.OnesCount64(bA.Elems[i])
 	}
 	// handle last element
-	lastElem := bA.Elems[numElems-1]
-	numFinalBits := bA.Bits - curBit
+	numFinalBits := bA.Bits - (numElems-1)*64
 	for i := 0; i < numFinalBits; i++ {
-		if (lastElem & (uint64(1) << uint64(i))) > 0 {
-			trueIndices = append(trueIndices, curBit)
+		if (bA.Elems[numElems-1] & (uint64(1) << uint64(i))) > 0 {
+			count++
 		}
-		curBit++
 	}
-	return trueIndices
+	return count
+}
+
+// getNthTrueIndex returns the index of the nth true bit in the bit array.
+// n is 0 indexed. (e.g. for bitarray x__x, getNthTrueIndex(0) returns 0).
+// If there is no such value, it returns -1.
+func (bA *BitArray) getNthTrueIndex(n int) int {
+	numElems := len(bA.Elems)
+	count := 0
+
+	// Iterate over each element
+	for i := 0; i < numElems; i++ {
+		// Count set bits in the current element
+		setBits := bits.OnesCount64(bA.Elems[i])
+
+		// If the count of set bits in this element plus the count so far
+		// is greater than or equal to n, then the nth bit must be in this element
+		if count+setBits >= n {
+			// Find the index of the nth set bit within this element
+			for j := 0; j < 64; j++ {
+				if bA.Elems[i]&(1<<uint(j)) != 0 {
+					if count == n {
+						// Calculate the absolute index of the set bit
+						return i*64 + j
+					}
+					count++
+				}
+			}
+		} else {
+			// If the count is not enough, continue to the next element
+			count += setBits
+		}
+	}
+
+	// If we reach here, it means n is out of range
+	return -1
 }
 
 // String returns a string representation of BitArray: BA{<bit-string>},
@@ -448,4 +499,23 @@ func (bA *BitArray) FromProto(protoBitArray *cmtprotobits.BitArray) {
 	if len(protoBitArray.Elems) > 0 {
 		bA.Elems = protoBitArray.Elems
 	}
+}
+
+// ValidateBasic validates a BitArray. Note that a nil BitArray and BitArray of
+// size 0 bits is valid. However the number of Bits and Elems be valid based on
+// each other.
+func (bA *BitArray) ValidateBasic() error {
+	if bA == nil {
+		return nil
+	}
+
+	expectedElems := numElements(bA.Size())
+	if expectedElems != len(bA.Elems) {
+		return fmt.Errorf("mismatch between specified number of bits %d, and number of elements %d, expected %d elements", bA.Size(), len(bA.Elems), expectedElems)
+	}
+	return nil
+}
+
+func numElements(bits int) int {
+	return (bits + 63) / 64
 }

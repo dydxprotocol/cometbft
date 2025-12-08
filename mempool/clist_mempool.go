@@ -706,10 +706,6 @@ func (mem *CListMempool) purgeExpiredTxs(blockHeight int64, blockTime time.Time)
 func (mem *CListMempool) recheckTxs() {
 	mem.logger.Debug("recheck txs", "height", mem.height.Load(), "num-txs", mem.Size())
 
-	if mem.Size() <= 0 {
-		return
-	}
-
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		// If this transaction is Cosmos transaction containing a
@@ -721,6 +717,14 @@ func (mem *CListMempool) recheckTxs() {
 			}
 		}
 	}
+
+	// If the mempool is empty after removing short-term CLOB transactions, there will be no
+	// recheck responses sent by the app, so waiting on mem.recheck.doneRechecking() would
+	// block until mem.config.RecheckTimeout elapses. Early-return here avoids that idle wait.
+	if mem.Size() <= 0 {
+		return
+	}
+
 	mem.recheck.init(mem.txs.Front(), mem.txs.Back())
 
 	// NOTE: globalCb may be called concurrently, but CheckTx cannot be executed concurrently

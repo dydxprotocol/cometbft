@@ -22,6 +22,10 @@ type Mempool struct {
 func (_m *Mempool) CheckTx(tx types.Tx, callback func(*abcitypes.ResponseCheckTx), txInfo mempool.TxInfo) error {
 	ret := _m.Called(tx, callback, txInfo)
 
+	if len(ret) == 0 {
+		panic("no return value specified for CheckTx")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func(types.Tx, func(*abcitypes.ResponseCheckTx), mempool.TxInfo) error); ok {
 		r0 = rf(tx, callback, txInfo)
@@ -32,19 +36,23 @@ func (_m *Mempool) CheckTx(tx types.Tx, callback func(*abcitypes.ResponseCheckTx
 	return r0
 }
 
-// EnableTxsAvailable provides a mock function with given fields:
+// EnableTxsAvailable provides a mock function with no fields
 func (_m *Mempool) EnableTxsAvailable() {
 	_m.Called()
 }
 
-// Flush provides a mock function with given fields:
+// Flush provides a mock function with no fields
 func (_m *Mempool) Flush() {
 	_m.Called()
 }
 
-// FlushAppConn provides a mock function with given fields:
+// FlushAppConn provides a mock function with no fields
 func (_m *Mempool) FlushAppConn() error {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for FlushAppConn")
+	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
@@ -56,7 +64,7 @@ func (_m *Mempool) FlushAppConn() error {
 	return r0
 }
 
-// Lock provides a mock function with given fields:
+// Lock provides a mock function with no fields
 func (_m *Mempool) Lock() {
 	_m.Called()
 }
@@ -64,6 +72,10 @@ func (_m *Mempool) Lock() {
 // ReapMaxBytesMaxGas provides a mock function with given fields: maxBytes, maxGas
 func (_m *Mempool) ReapMaxBytesMaxGas(maxBytes int64, maxGas int64) types.Txs {
 	ret := _m.Called(maxBytes, maxGas)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReapMaxBytesMaxGas")
+	}
 
 	var r0 types.Txs
 	if rf, ok := ret.Get(0).(func(int64, int64) types.Txs); ok {
@@ -81,6 +93,10 @@ func (_m *Mempool) ReapMaxBytesMaxGas(maxBytes int64, maxGas int64) types.Txs {
 func (_m *Mempool) ReapMaxTxs(max int) types.Txs {
 	ret := _m.Called(max)
 
+	if len(ret) == 0 {
+		panic("no return value specified for ReapMaxTxs")
+	}
+
 	var r0 types.Txs
 	if rf, ok := ret.Get(0).(func(int) types.Txs); ok {
 		r0 = rf(max)
@@ -97,6 +113,10 @@ func (_m *Mempool) ReapMaxTxs(max int) types.Txs {
 func (_m *Mempool) RemoveTxByKey(txKey types.TxKey) error {
 	ret := _m.Called(txKey)
 
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveTxByKey")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func(types.TxKey) error); ok {
 		r0 = rf(txKey)
@@ -107,9 +127,13 @@ func (_m *Mempool) RemoveTxByKey(txKey types.TxKey) error {
 	return r0
 }
 
-// Size provides a mock function with given fields:
+// Size provides a mock function with no fields
 func (_m *Mempool) Size() int {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Size")
+	}
 
 	var r0 int
 	if rf, ok := ret.Get(0).(func() int); ok {
@@ -121,9 +145,13 @@ func (_m *Mempool) Size() int {
 	return r0
 }
 
-// SizeBytes provides a mock function with given fields:
+// SizeBytes provides a mock function with no fields
 func (_m *Mempool) SizeBytes() int64 {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for SizeBytes")
+	}
 
 	var r0 int64
 	if rf, ok := ret.Get(0).(func() int64); ok {
@@ -135,9 +163,13 @@ func (_m *Mempool) SizeBytes() int64 {
 	return r0
 }
 
-// TxsAvailable provides a mock function with given fields:
+// TxsAvailable provides a mock function with no fields
 func (_m *Mempool) TxsAvailable() <-chan struct{} {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for TxsAvailable")
+	}
 
 	var r0 <-chan struct{}
 	if rf, ok := ret.Get(0).(func() <-chan struct{}); ok {
@@ -151,7 +183,7 @@ func (_m *Mempool) TxsAvailable() <-chan struct{} {
 	return r0
 }
 
-// Unlock provides a mock function with given fields:
+// Unlock provides a mock function with no fields
 func (_m *Mempool) Unlock() {
 	_m.Called()
 }
@@ -159,6 +191,10 @@ func (_m *Mempool) Unlock() {
 // Update provides a mock function with given fields: blockHeight, blockTime, blockTxs, deliverTxResponses, newPreFn, newPostFn
 func (_m *Mempool) Update(blockHeight int64, blockTime time.Time, blockTxs types.Txs, deliverTxResponses []*abcitypes.ExecTxResult, newPreFn mempool.PreCheckFunc, newPostFn mempool.PostCheckFunc) error {
 	ret := _m.Called(blockHeight, blockTime, blockTxs, deliverTxResponses, newPreFn, newPostFn)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(int64, time.Time, types.Txs, []*abcitypes.ExecTxResult, mempool.PreCheckFunc, mempool.PostCheckFunc) error); ok {
@@ -170,13 +206,12 @@ func (_m *Mempool) Update(blockHeight int64, blockTime time.Time, blockTxs types
 	return r0
 }
 
-type mockConstructorTestingTNewMempool interface {
+// NewMempool creates a new instance of Mempool. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewMempool(t interface {
 	mock.TestingT
 	Cleanup(func())
-}
-
-// NewMempool creates a new instance of Mempool. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
-func NewMempool(t mockConstructorTestingTNewMempool) *Mempool {
+}) *Mempool {
 	mock := &Mempool{}
 	mock.Mock.Test(t)
 

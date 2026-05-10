@@ -1,4 +1,4 @@
-//go:build gofuzz || go1.21
+//go:build gofuzz || go1.24
 
 package tests
 

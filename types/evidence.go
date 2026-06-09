@@ -357,6 +357,10 @@ func (l *LightClientAttackEvidence) ValidateBasic() error {
 		return errors.New("conflicting block is nil")
 	}
 
+	if l.ConflictingBlock.SignedHeader == nil {
+		return errors.New("conflicting block missing signed header")
+	}
+
 	// this check needs to be done before we can run validate basic
 	if l.ConflictingBlock.Header == nil {
 		return errors.New("conflicting block missing header")

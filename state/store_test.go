@@ -45,6 +45,59 @@ func TestStoreLoadValidators(t *testing.T) {
 	assert.NotZero(t, loadedVals.Size())
 }
 
+// Reconstructed validator sets must carry the same proposer priorities as the live state. The
+// reduced proposer set makes RescalePriorities fire on every height, so a reconstruction that
+// rescales once and then batches the increments drifts away from what running nodes hold, and
+// a node bootstrapped from it (via /validators, hence state sync) computes a different proposer.
+func TestStoreLoadValidatorsMatchesLiveProposerPriority(t *testing.T) {
+	const (
+		numVals     = 10
+		lastChanged = int64(1)
+		span        = int64(200)
+	)
+	for _, tc := range []struct {
+		name         string
+		numProposers int
+	}{
+		{"all validators propose", numVals},
+		{"reduced proposer set", 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stateDB := dbm.NewMemDB()
+			stateStore := sm.NewStore(stateDB, sm.StoreOptions{DiscardABCIResponses: false})
+
+			vals := make([]*types.Validator, numVals)
+			for i := range vals {
+				val, _ := types.RandValidator(false, int64(1000+i*137))
+				val.ProposeDisabled = i >= tc.numProposers
+				vals[i] = val
+			}
+			stored := types.NewValidatorSet(vals)
+			// Run the set for a while first so the non-proposers' priorities are already large.
+			stored.IncrementProposerPriority(50)
+
+			require.NoError(t, sm.SaveValidatorsInfo(stateDB, lastChanged, lastChanged, stored))
+			for h := lastChanged + 1; h <= lastChanged+span; h++ {
+				require.NoError(t, sm.SaveValidatorsInfo(stateDB, h, lastChanged, stored))
+			}
+
+			// The live path advances the set once per height.
+			live := stored.Copy()
+			for h := lastChanged; h < lastChanged+span; h++ {
+				live.IncrementProposerPriority(1)
+			}
+
+			loaded, err := stateStore.LoadValidators(lastChanged + span)
+			require.NoError(t, err)
+			require.Equal(t, live.GetProposer().Address, loaded.GetProposer().Address)
+			for i, lv := range live.Validators {
+				assert.Equal(t, lv.ProposerPriority, loaded.Validators[i].ProposerPriority,
+					"validator %d priority", i)
+			}
+		})
+	}
+}
+
 func BenchmarkLoadValidators(b *testing.B) {
 	const valSetSize = 100
 

@@ -561,7 +561,14 @@ func (store dbStore) LoadValidators(height int64) (*types.ValidatorSet, error) {
 			return nil, err
 		}
 
-		vs.IncrementProposerPriority(cmtmath.SafeConvertInt32(height - lastStoredHeight)) // mutate
+		// Step one height at a time, exactly as updateState does. IncrementProposerPriority(n)
+		// rescales once and then applies n raw increments, which only matches the live path while
+		// the priority spread stays within the rescale window. With a reduced proposer set the
+		// non-proposers accumulate priority without bound, the lossy rescale fires every height,
+		// and the batched result diverges from what every running node holds in state.
+		for h := lastStoredHeight; h < height; h++ {
+			vs.IncrementProposerPriority(1) // mutate
+		}
 		vi2, err := vs.ToProto()
 		if err != nil {
 			return nil, err

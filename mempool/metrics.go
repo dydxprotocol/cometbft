@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"github.com/go-kit/kit/metrics"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -57,4 +58,29 @@ type Metrics struct {
 	// Number of connections being actively used for gossiping transactions
 	// (experimental feature).
 	ActiveOutboundConnections metrics.Gauge
+
+	// Number of transactions received from peers that were dropped because the
+	// recv queue was full.
+	RecvQueueDroppedTxs metrics.Counter
+
+	// Number of transactions received from peers waiting for a recv worker.
+	RecvQueueLen metrics.Gauge
+
+	// Seconds a transaction received from a peer waited for a recv worker.
+	RecvQueueWaitSeconds metrics.Histogram `metrics_buckettype:"exp" metrics_bucketsizes:"0.001,2,16"`
+
+	// The vector behind RecvQueueWaitSeconds and the global label values, so
+	// the reactor resolves its series once and observes without allocating.
+	// Every go-kit Observe builds a label map per call. nil for NopMetrics.
+	recvQueueWaitVec  *stdprometheus.HistogramVec
+	globalLabelValues []string
+}
+
+// recvQueueWaitObserver resolves the wait histogram's series. nil when metrics
+// are absent or discarded.
+func (m *Metrics) recvQueueWaitObserver() stdprometheus.Observer {
+	if m == nil || m.recvQueueWaitVec == nil {
+		return nil
+	}
+	return m.recvQueueWaitVec.WithLabelValues(m.globalLabelValues...)
 }

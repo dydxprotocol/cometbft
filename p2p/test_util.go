@@ -153,6 +153,7 @@ func (sw *Switch) addPeerWithConnection(conn net.Conn) error {
 		sw.chDescs,
 		sw.StopPeerForError,
 		sw.mlc,
+		PeerMetrics(sw.metrics),
 	)
 
 	if err = sw.addPeer(p); err != nil {

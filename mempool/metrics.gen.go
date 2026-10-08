@@ -10,9 +10,22 @@ import (
 
 func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	labels := []string{}
+	values := []string{}
 	for i := 0; i < len(labelsAndValues); i += 2 {
 		labels = append(labels, labelsAndValues[i])
+		if i+1 < len(labelsAndValues) {
+			values = append(values, labelsAndValues[i+1])
+		}
 	}
+	recvQueueWaitVec := stdprometheus.NewHistogramVec(stdprometheus.HistogramOpts{
+		Namespace: namespace,
+		Subsystem: MetricsSubsystem,
+		Name:      "recv_queue_wait_seconds",
+		Help:      "Seconds a transaction received from a peer waited for a recv worker.",
+
+		Buckets: stdprometheus.ExponentialBuckets(0.001, 2, 16),
+	}, labels)
+	stdprometheus.MustRegister(recvQueueWaitVec)
 	return &Metrics{
 		Size: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
@@ -76,6 +89,21 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "active_outbound_connections",
 			Help:      "Number of connections being actively used for gossiping transactions (experimental feature).",
 		}, labels).With(labelsAndValues...),
+		RecvQueueDroppedTxs: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "recv_queue_dropped_txs",
+			Help:      "Number of transactions received from peers that were dropped because the recv queue was full.",
+		}, labels).With(labelsAndValues...),
+		RecvQueueLen: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "recv_queue_len",
+			Help:      "Number of transactions received from peers waiting for a recv worker.",
+		}, labels).With(labelsAndValues...),
+		RecvQueueWaitSeconds: prometheus.NewHistogram(recvQueueWaitVec).With(labelsAndValues...),
+		recvQueueWaitVec:     recvQueueWaitVec,
+		globalLabelValues:    values,
 	}
 }
 
@@ -91,5 +119,8 @@ func NopMetrics() *Metrics {
 		PurgedNumBlocksTxs:        discard.NewCounter(),
 		RecheckTimes:              discard.NewCounter(),
 		ActiveOutboundConnections: discard.NewGauge(),
+		RecvQueueDroppedTxs:       discard.NewCounter(),
+		RecvQueueLen:              discard.NewGauge(),
+		RecvQueueWaitSeconds:      discard.NewHistogram(),
 	}
 }

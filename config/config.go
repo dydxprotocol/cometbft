@@ -736,7 +736,9 @@ type MempoolConfig struct {
 	// This only accounts for raw transactions (e.g. given 1MB transactions and
 	// max_txs_bytes=5MB, mempool will only accept 5 transactions).
 	MaxTxsBytes int64 `mapstructure:"max_txs_bytes"`
-	// Size of the cache (used to filter transactions we saw earlier) in transactions
+	// Size of the cache (used to filter transactions we saw earlier) in transactions.
+	// With RecvWorkers > 0 the cache is never smaller than RecvQueueSize, since
+	// received transactions are held in it while they wait to be checked.
 	CacheSize int `mapstructure:"cache_size"`
 	// Do not remove invalid transactions from the cache (default: false)
 	// Set to true if it's not possible for any invalid transaction to become
@@ -749,6 +751,16 @@ type MempoolConfig struct {
 	// Including space needed by encoding (one varint per transaction).
 	// XXX: Unused due to https://github.com/tendermint/tendermint/issues/5796
 	MaxBatchBytes int `mapstructure:"max_batch_bytes"`
+	// RecvWorkers is the number of goroutines that run CheckTx for transactions
+	// received from peers. When positive, a peer's receive goroutine only
+	// deduplicates and enqueues, and CheckTx runs on a worker, so consensus
+	// messages arriving on the same connection are not blocked behind it.
+	// 0 keeps the inline behavior.
+	RecvWorkers int `mapstructure:"recv_workers"`
+	// RecvQueueSize bounds the number of received transactions waiting for a
+	// recv worker. When the queue is full, newly received transactions are
+	// dropped and counted in the mempool_recv_queue_dropped_txs metric.
+	RecvQueueSize int `mapstructure:"recv_queue_size"`
 	// Experimental parameters to limit gossiping txs to up to the specified number of peers.
 	// We use two independent upper values for persistent and non-persistent peers.
 	// Unconditional peers are not affected by this feature.
@@ -792,8 +804,14 @@ func DefaultMempoolConfig() *MempoolConfig {
 		// ABCI Recheck
 		Size:        5000,
 		MaxTxsBytes: 1024 * 1024 * 1024, // 1GB
-		CacheSize:   10000,
+		// 10000 is 2.5s of txs at the 4000 tx/s a mainnet node receives, so copies
+		// of a tx gossiped later than that were re-checked in full.
+		CacheSize:   100000,
 		MaxTxBytes:  1024 * 1024, // 1MB
+		RecvWorkers: 4,
+		// 20000 overflowed on a 40-peer mainnet full node at 4000 tx/s during
+		// multi-second commit stalls; 100000 is ~25s of inbound at that rate.
+		RecvQueueSize: 100000,
 		ExperimentalMaxGossipConnectionsToNonPersistentPeers: 0,
 		ExperimentalMaxGossipConnectionsToPersistentPeers:    0,
 		// Note this is true to avoid re-processing invalid order transactions more than once.
@@ -838,6 +856,12 @@ func (cfg *MempoolConfig) ValidateBasic() error {
 	}
 	if cfg.MaxTxBytes < 0 {
 		return errors.New("max_tx_bytes can't be negative")
+	}
+	if cfg.RecvWorkers < 0 {
+		return errors.New("recv_workers can't be negative")
+	}
+	if cfg.RecvQueueSize < 0 {
+		return errors.New("recv_queue_size can't be negative")
 	}
 	if cfg.ExperimentalMaxGossipConnectionsToPersistentPeers < 0 {
 		return errors.New("experimental_max_gossip_connections_to_persistent_peers can't be negative")

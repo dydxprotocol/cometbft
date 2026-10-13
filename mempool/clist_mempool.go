@@ -88,8 +88,15 @@ func NewCListMempool(
 	mp.height.Store(height)
 	mp.timestamp.Store(&timestamp)
 
-	if cfg.CacheSize > 0 {
-		mp.cache = NewLRUTxCache(cfg.CacheSize)
+	cacheSize := cfg.CacheSize
+	if cfg.RecvWorkers > 0 && cfg.RecvQueueSize > cacheSize {
+		// Received txs are claimed in the cache until a worker checks them. A
+		// cache smaller than the queue would evict the claims of txs still
+		// waiting, and every other peer's copy of them would be queued again.
+		cacheSize = cfg.RecvQueueSize
+	}
+	if cacheSize > 0 {
+		mp.cache = NewLRUTxCache(cacheSize)
 	} else {
 		mp.cache = NopTxCache{}
 	}
@@ -101,6 +108,39 @@ func NewCListMempool(
 	}
 
 	return mp
+}
+
+// ClaimTx enters tx into the cache ahead of a queued CheckTx and reports
+// whether the caller now owns the check. It reports false when tx was already
+// cached, recording senderID as a sender if the tx is still in the mempool so
+// it is not gossiped back. Claiming at receive time, rather than when a worker
+// finally runs CheckTx, is what keeps copies of the same tx from other peers
+// out of the queue while the first copy waits. It does not take updateMtx, so a
+// peer's receive goroutine never waits on an in-progress Update here. A claim
+// that is never checked must be released with UnclaimTx.
+func (mem *CListMempool) ClaimTx(tx types.Tx, senderID uint16) bool {
+	if mem.cache.Push(tx) {
+		return true
+	}
+	if memTx := mem.getMemTx(tx.Key()); memTx != nil {
+		memTx.addSender(senderID)
+	}
+	return false
+}
+
+// UnclaimTx releases a claim made by ClaimTx for a tx that will not be checked,
+// so a later copy of it can be.
+func (mem *CListMempool) UnclaimTx(tx types.Tx) {
+	mem.cache.Remove(tx)
+}
+
+// CheckTxClaimed is CheckTx for a tx already entered into the cache by ClaimTx.
+func (mem *CListMempool) CheckTxClaimed(
+	tx types.Tx,
+	cb func(*abci.ResponseCheckTx),
+	txInfo TxInfo,
+) error {
+	return mem.checkTx(tx, cb, txInfo, true)
 }
 
 func (mem *CListMempool) getCElement(txKey types.TxKey) (*clist.CElement, bool) {
@@ -183,10 +223,12 @@ func (mem *CListMempool) FlushAppConn() error {
 	return mem.proxyAppConn.Flush(context.TODO())
 }
 
-// XXX: Unsafe! Calling Flush may leave mempool in inconsistent state.
+// Flush removes all txs and resets the cache. It takes the exclusive lock so
+// it cannot interleave with a CheckTx callback, which asserts the mempool is
+// non-empty right after adding a tx.
 func (mem *CListMempool) Flush() {
-	mem.updateMtx.RLock()
-	defer mem.updateMtx.RUnlock()
+	mem.updateMtx.Lock()
+	defer mem.updateMtx.Unlock()
 
 	mem.txsBytes.Store(0)
 	mem.cache.Reset()
@@ -225,9 +267,30 @@ func (mem *CListMempool) CheckTx(
 	cb func(*abci.ResponseCheckTx),
 	txInfo TxInfo,
 ) error {
+	return mem.checkTx(tx, cb, txInfo, false)
+}
+
+// checkTx is CheckTx. With claimed set the tx is already in the cache from
+// ClaimTx, so the cache push is skipped and a rejection before the app sees the
+// tx releases the claim, matching the unclaimed path where such a tx is never
+// cached.
+func (mem *CListMempool) checkTx(
+	tx types.Tx,
+	cb func(*abci.ResponseCheckTx),
+	txInfo TxInfo,
+	claimed bool,
+) (err error) {
 	mem.updateMtx.RLock()
 	// use defer to unlock mutex because application (*local client*) might panic
 	defer mem.updateMtx.RUnlock()
+
+	if claimed {
+		defer func() {
+			if err != nil && !errors.Is(err, ErrTxInCache) {
+				mem.cache.Remove(tx)
+			}
+		}()
+	}
 
 	txSize := len(tx)
 
@@ -255,7 +318,7 @@ func (mem *CListMempool) CheckTx(
 		return err
 	}
 
-	if !mem.cache.Push(tx) { // if the transaction already exists in the cache
+	if !claimed && !mem.cache.Push(tx) { // if the transaction already exists in the cache
 		// Record a new sender for a tx we've already seen.
 		// Note it's possible a tx is still in the cache but no longer in the mempool
 		// (eg. after committing a block, txs are removed from mempool but not cache),

@@ -660,6 +660,7 @@ func TestMempoolNoCacheOverflow(t *testing.T) {
 		}
 	})
 	cfg := test.ResetTestRoot("mempool_test")
+	cfg.Mempool.RecvWorkers = 0 // workers would floor the cache at recv_queue_size
 	mp, cleanup := newMempoolWithAppAndConfig(proxy.NewRemoteClientCreator(sockPath, "socket", true), cfg)
 	defer cleanup()
 
@@ -825,4 +826,22 @@ func abciResponses(n int, code uint32) []*abci.ExecTxResult {
 		responses = append(responses, &abci.ExecTxResult{Code: code})
 	}
 	return responses
+}
+
+// With receive workers on, the cache is at least the receive queue, so the
+// claims of txs still waiting for a worker are not evicted.
+func TestMempoolCacheFloorsAtRecvQueue(t *testing.T) {
+	cc := proxy.NewLocalClientCreator(kvstore.NewInMemoryApplication())
+	cfg := test.ResetTestRoot("mempool_test")
+	cfg.Mempool.CacheSize = 10
+	cfg.Mempool.RecvWorkers = 4
+	cfg.Mempool.RecvQueueSize = 1000
+	mp, cleanup := newMempoolWithAppAndConfig(cc, cfg)
+	defer cleanup()
+	require.Equal(t, 1000, mp.cache.(*LRUTxCache).size)
+
+	cfg.Mempool.RecvWorkers = 0
+	mp, cleanup = newMempoolWithAppAndConfig(cc, cfg)
+	defer cleanup()
+	require.Equal(t, 10, mp.cache.(*LRUTxCache).size)
 }

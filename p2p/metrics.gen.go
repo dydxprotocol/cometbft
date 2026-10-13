@@ -10,28 +10,58 @@ import (
 
 func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 	labels := []string{}
+	values := []string{}
 	for i := 0; i < len(labelsAndValues); i += 2 {
 		labels = append(labels, labelsAndValues[i])
+		if i+1 < len(labelsAndValues) {
+			values = append(values, labelsAndValues[i+1])
+		}
 	}
+	withLabels := func(names ...string) []string {
+		return append(append([]string{}, labels...), names...)
+	}
+	peerReceiveBytesVec := stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: MetricsSubsystem,
+		Name:      "peer_receive_bytes_total",
+		Help:      "Number of bytes received from a given peer.",
+	}, withLabels("peer_id", "chID"))
+	stdprometheus.MustRegister(peerReceiveBytesVec)
+	peerSendBytesVec := stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: MetricsSubsystem,
+		Name:      "peer_send_bytes_total",
+		Help:      "Number of bytes sent to a given peer.",
+	}, withLabels("peer_id", "chID"))
+	stdprometheus.MustRegister(peerSendBytesVec)
+	messageReceiveBytesVec := stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: MetricsSubsystem,
+		Name:      "message_receive_bytes_total",
+		Help:      "Number of bytes of each message type received.",
+	}, withLabels("message_type"))
+	stdprometheus.MustRegister(messageReceiveBytesVec)
+	messageSendBytesVec := stdprometheus.NewCounterVec(stdprometheus.CounterOpts{
+		Namespace: namespace,
+		Subsystem: MetricsSubsystem,
+		Name:      "message_send_bytes_total",
+		Help:      "Number of bytes of each message type sent.",
+	}, withLabels("message_type"))
+	stdprometheus.MustRegister(messageSendBytesVec)
 	return &Metrics{
+		peerReceiveBytesVec:    peerReceiveBytesVec,
+		peerSendBytesVec:       peerSendBytesVec,
+		messageReceiveBytesVec: messageReceiveBytesVec,
+		messageSendBytesVec:    messageSendBytesVec,
+		globalLabelValues:      values,
 		Peers: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
 			Name:      "peers",
 			Help:      "Number of peers.",
 		}, labels).With(labelsAndValues...),
-		PeerReceiveBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "peer_receive_bytes_total",
-			Help:      "Number of bytes received from a given peer.",
-		}, append(labels, "peer_id", "chID")).With(labelsAndValues...),
-		PeerSendBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "peer_send_bytes_total",
-			Help:      "Number of bytes sent to a given peer.",
-		}, append(labels, "peer_id", "chID")).With(labelsAndValues...),
+		PeerReceiveBytesTotal: prometheus.NewCounter(peerReceiveBytesVec).With(labelsAndValues...),
+		PeerSendBytesTotal:    prometheus.NewCounter(peerSendBytesVec).With(labelsAndValues...),
 		PeerPendingSendBytes: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
@@ -44,18 +74,8 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "num_txs",
 			Help:      "Number of transactions submitted by each peer.",
 		}, append(labels, "peer_id")).With(labelsAndValues...),
-		MessageReceiveBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "message_receive_bytes_total",
-			Help:      "Number of bytes of each message type received.",
-		}, append(labels, "message_type")).With(labelsAndValues...),
-		MessageSendBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "message_send_bytes_total",
-			Help:      "Number of bytes of each message type sent.",
-		}, append(labels, "message_type")).With(labelsAndValues...),
+		MessageReceiveBytesTotal: prometheus.NewCounter(messageReceiveBytesVec).With(labelsAndValues...),
+		MessageSendBytesTotal:    prometheus.NewCounter(messageSendBytesVec).With(labelsAndValues...),
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cosmos/gogoproto/proto"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/cometbft/cometbft/libs/cmap"
 	"github.com/cometbft/cometbft/libs/log"
@@ -125,6 +126,12 @@ type peer struct {
 	metricsTicker *time.Ticker
 	mlc           *metricsLabelCache
 
+	// Byte counters for this peer resolved once per channel, indexed by channel
+	// id, so the send and receive paths do not allocate. nil when metrics are
+	// discarded or the channel has no reactor.
+	recvBytes [256]stdprometheus.Counter
+	sendBytes [256]stdprometheus.Counter
+
 	// When removal of a peer fails, we set this flag
 	removalAttemptFailed bool
 }
@@ -164,6 +171,9 @@ func newPeer(
 	p.BaseService = *service.NewBaseService(nil, "Peer", p)
 	for _, option := range options {
 		option(p)
+	}
+	for chID := range reactorsByCh {
+		p.recvBytes[chID], p.sendBytes[chID] = p.metrics.peerChannelCounters(p.ID(), chID)
 	}
 
 	return p
@@ -273,7 +283,7 @@ func (p *peer) send(chID byte, msg proto.Message, sendFunc func(byte, []byte) bo
 	} else if !p.hasChannel(chID) {
 		return false
 	}
-	metricLabelValue := p.mlc.ValueToMetricLabel(msg)
+	typeCounters := p.metrics.messageTypeCounters(msg, p.mlc)
 	if w, ok := msg.(Wrapper); ok {
 		msg = w.Wrap()
 	}
@@ -284,12 +294,12 @@ func (p *peer) send(chID byte, msg proto.Message, sendFunc func(byte, []byte) bo
 	}
 	res := sendFunc(chID, msgBytes)
 	if res {
-		labels := []string{
-			"peer_id", string(p.ID()),
-			"chID", fmt.Sprintf("%#x", chID),
+		if c := p.sendBytes[chID]; c != nil {
+			c.Add(float64(len(msgBytes)))
 		}
-		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		p.metrics.MessageSendBytesTotal.With("message_type", metricLabelValue).Add(float64(len(msgBytes)))
+		if typeCounters != nil {
+			typeCounters.send.Add(float64(len(msgBytes)))
+		}
 	}
 	return res
 }
@@ -410,18 +420,18 @@ func createMConnection(
 		if err != nil {
 			panic(fmt.Errorf("unmarshaling message: %s into type: %s", err, reflect.TypeOf(mt)))
 		}
-		labels := []string{
-			"peer_id", string(p.ID()),
-			"chID", fmt.Sprintf("%#x", chID),
-		}
 		if w, ok := msg.(Unwrapper); ok {
 			msg, err = w.Unwrap()
 			if err != nil {
 				panic(fmt.Errorf("unwrapping message: %s", err))
 			}
 		}
-		p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		p.metrics.MessageReceiveBytesTotal.With("message_type", p.mlc.ValueToMetricLabel(msg)).Add(float64(len(msgBytes)))
+		if c := p.recvBytes[chID]; c != nil {
+			c.Add(float64(len(msgBytes)))
+		}
+		if c := p.metrics.messageTypeCounters(msg, p.mlc); c != nil {
+			c.receive.Add(float64(len(msgBytes)))
+		}
 		reactor.Receive(Envelope{
 			ChannelID: chID,
 			Src:       p,

@@ -372,7 +372,9 @@ size = {{ .Mempool.Size }}
 # max_txs_bytes=5MB, mempool will only accept 5 transactions).
 max_txs_bytes = {{ .Mempool.MaxTxsBytes }}
 
-# Size of the cache (used to filter transactions we saw earlier) in transactions
+# Size of the cache (used to filter transactions we saw earlier) in transactions.
+# With recv_workers > 0 the cache is never smaller than recv_queue_size, since
+# received transactions are held in it while they wait to be checked.
 cache_size = {{ .Mempool.CacheSize }}
 
 # Do not remove invalid transactions from the cache (default: false)
@@ -388,6 +390,17 @@ max_tx_bytes = {{ .Mempool.MaxTxBytes }}
 # Including space needed by encoding (one varint per transaction).
 # XXX: Unused due to https://github.com/tendermint/tendermint/issues/5796
 max_batch_bytes = {{ .Mempool.MaxBatchBytes }}
+
+# Number of goroutines that run CheckTx for transactions received from peers.
+# When positive, a peer's receive goroutine only deduplicates and enqueues, and
+# CheckTx runs on a worker, so consensus messages arriving on the same
+# connection are not blocked behind it. 0 keeps the inline behavior.
+recv_workers = {{ .Mempool.RecvWorkers }}
+
+# Maximum number of received transactions waiting for a recv worker. When the
+# queue is full, newly received transactions are dropped and counted in the
+# mempool_recv_queue_dropped_txs metric.
+recv_queue_size = {{ .Mempool.RecvQueueSize }}
 
 # Experimental parameters to limit gossiping txs to up to the specified number of peers.
 # We use two independent upper values for persistent and non-persistent peers.

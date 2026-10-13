@@ -6,8 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,7 +59,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Creating docker pool: %v", err)
 	}
 
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
+	runOptions := &dockertest.RunOptions{
 		Repository: "postgres",
 		Tag:        "13",
 		Env: []string{
@@ -67,15 +69,34 @@ func TestMain(m *testing.M) {
 			"listen_addresses = '*'",
 		},
 		ExposedPorts: []string{port},
-	}, func(config *docker.HostConfig) {
+	}
+	hostConfig := func(config *docker.HostConfig) {
 		// set AutoRemove to true so that stopped container goes away by itself
 		config.AutoRemove = true
 		config.RestartPolicy = docker.RestartPolicy{
 			Name: "no",
 		}
-	})
-	if err != nil {
-		log.Fatalf("Starting docker pool: %v", err)
+	}
+	// Left to Docker, the host port is sometimes one that is already taken on a
+	// shared CI runner, and the same one again on retry. Pick a free port here
+	// instead, a new one on each attempt.
+	var resource *dockertest.Resource
+	for attempt := 1; ; attempt++ {
+		hostPort, err := freePort()
+		if err != nil {
+			log.Fatalf("Finding a free port: %v", err)
+		}
+		runOptions.PortBindings = map[docker.Port][]docker.PortBinding{
+			docker.Port(port + "/tcp"): {{HostIP: "127.0.0.1", HostPort: hostPort}},
+		}
+		resource, err = pool.RunWithOptions(runOptions, hostConfig)
+		if err == nil {
+			break
+		}
+		if attempt == 5 || !strings.Contains(err.Error(), "address already in use") {
+			log.Fatalf("Starting docker pool: %v", err)
+		}
+		log.Printf("Starting docker pool (attempt %d): %v; retrying", attempt, err)
 	}
 
 	if *doPauseAtExit {
@@ -377,4 +398,15 @@ func waitForInterrupt() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
 	<-ch
+}
+
+// freePort asks the kernel for an unused TCP port on the loopback interface.
+func freePort() (string, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	defer l.Close()
+	_, p, err := net.SplitHostPort(l.Addr().String())
+	return p, err
 }

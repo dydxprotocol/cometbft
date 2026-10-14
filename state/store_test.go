@@ -98,6 +98,97 @@ func TestStoreLoadValidatorsMatchesLiveProposerPriority(t *testing.T) {
 	}
 }
 
+// LoadValidators resumes from the last set it rebuilt. Whatever order heights are looked up in,
+// each lookup must match the live proposer priorities, and the sets it returns must not alias
+// the one it resumes from.
+func TestStoreLoadValidatorsResumesFromLastRebuilt(t *testing.T) {
+	const (
+		numVals      = 10
+		numProposers = 3
+		changedA     = int64(1)
+		changedB     = int64(301)
+		last         = int64(600)
+	)
+	stateDB := dbm.NewMemDB()
+	stateStore := sm.NewStore(stateDB, sm.StoreOptions{DiscardABCIResponses: false})
+
+	live := make(map[int64]*types.ValidatorSet)
+	for _, seg := range []struct{ changed, end int64 }{{changedA, changedB - 1}, {changedB, last}} {
+		vals := make([]*types.Validator, numVals)
+		for i := range vals {
+			val, _ := types.RandValidator(false, int64(1000+i*137)+seg.changed)
+			val.ProposeDisabled = i >= numProposers
+			vals[i] = val
+		}
+		set := types.NewValidatorSet(vals)
+		set.IncrementProposerPriority(50)
+
+		require.NoError(t, sm.SaveValidatorsInfo(stateDB, seg.changed, seg.changed, set))
+		live[seg.changed] = set.Copy()
+		for h := seg.changed + 1; h <= seg.end; h++ {
+			require.NoError(t, sm.SaveValidatorsInfo(stateDB, h, seg.changed, set))
+			set.IncrementProposerPriority(1)
+			live[h] = set.Copy()
+		}
+	}
+
+	var heights []int64
+	for h := int64(2); h <= 250; h++ {
+		heights = append(heights, h)
+	}
+	heights = append(heights, 10, 120, 250, 249)
+	for h := int64(251); h <= 320; h++ {
+		heights = append(heights, h)
+	}
+	heights = append(heights, 150, 290, 400, 380, 600, 330, 600)
+
+	for _, h := range heights {
+		loaded, err := stateStore.LoadValidators(h)
+		require.NoError(t, err)
+		want := live[h]
+		require.Equal(t, want.GetProposer().Address, loaded.GetProposer().Address, "height %d", h)
+		for i, v := range want.Validators {
+			require.Equal(t, v.ProposerPriority, loaded.Validators[i].ProposerPriority,
+				"height %d validator %d priority", h, i)
+		}
+		loaded.IncrementProposerPriority(7)
+	}
+}
+
+// Consensus looks up consecutive heights, so each lookup should cost one step no matter how far
+// behind the stored set is. Shaped like mainnet: 21 validators, 13 of them propose-disabled.
+func BenchmarkLoadValidatorsConsecutiveHeights(b *testing.B) {
+	const (
+		numVals      = 21
+		numProposers = 8
+		lastChanged  = int64(1)
+		gap          = int64(25000)
+	)
+	stateDB := dbm.NewMemDB()
+	stateStore := sm.NewStore(stateDB, sm.StoreOptions{DiscardABCIResponses: false})
+
+	vals := make([]*types.Validator, numVals)
+	for i := range vals {
+		val, _ := types.RandValidator(false, int64(1000+i*137))
+		val.ProposeDisabled = i >= numProposers
+		vals[i] = val
+	}
+	set := types.NewValidatorSet(vals)
+	require.NoError(b, sm.SaveValidatorsInfo(stateDB, lastChanged, lastChanged, set))
+	for h := lastChanged + 1; h <= lastChanged+gap+int64(b.N); h++ {
+		require.NoError(b, sm.SaveValidatorsInfo(stateDB, h, lastChanged, set))
+	}
+	_, err := stateStore.LoadValidators(lastChanged + gap)
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	for n := int64(1); n <= int64(b.N); n++ {
+		if _, err := stateStore.LoadValidators(lastChanged + gap + n); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkLoadValidators(b *testing.B) {
 	const valSetSize = 100
 

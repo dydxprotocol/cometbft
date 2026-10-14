@@ -12,6 +12,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	cmtos "github.com/cometbft/cometbft/libs/os"
+	cmtsync "github.com/cometbft/cometbft/libs/sync"
 	cmtstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
@@ -88,6 +89,18 @@ type dbStore struct {
 	db dbm.DB
 
 	StoreOptions
+
+	valSetCache *valSetCache
+}
+
+// valSetCache is the last validator set LoadValidators rebuilt for a height without a stored set,
+// kept so the next lookup on the same stored set steps forward from it rather than from the
+// stored set.
+type valSetCache struct {
+	mtx        cmtsync.Mutex
+	baseHeight int64
+	height     int64
+	valSet     *types.ValidatorSet
 }
 
 type StoreOptions struct {
@@ -110,7 +123,7 @@ func IsEmpty(store dbStore) (bool, error) {
 
 // NewStore creates the dbStore of the state pkg.
 func NewStore(db dbm.DB, options StoreOptions) Store {
-	return dbStore{db, options}
+	return dbStore{db, options, &valSetCache{}}
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,
@@ -546,36 +559,10 @@ func (store dbStore) LoadValidators(height int64) (*types.ValidatorSet, error) {
 	}
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
-		valInfo2, err := loadValidatorsInfo(store.db, lastStoredHeight)
-		if err != nil || valInfo2.ValidatorSet == nil {
-			return nil,
-				fmt.Errorf("couldn't find validators at height %d (height %d was originally requested): %w",
-					lastStoredHeight,
-					height,
-					err,
-				)
-		}
-
-		vs, err := types.ValidatorSetFromProto(valInfo2.ValidatorSet)
+		valInfo.ValidatorSet, err = store.rebuildValidators(lastStoredHeight, height)
 		if err != nil {
 			return nil, err
 		}
-
-		// Step one height at a time, exactly as updateState does. IncrementProposerPriority(n)
-		// rescales once and then applies n raw increments, which only matches the live path while
-		// the priority spread stays within the rescale window. With a reduced proposer set the
-		// non-proposers accumulate priority without bound, the lossy rescale fires every height,
-		// and the batched result diverges from what every running node holds in state.
-		for h := lastStoredHeight; h < height; h++ {
-			vs.IncrementProposerPriority(1) // mutate
-		}
-		vi2, err := vs.ToProto()
-		if err != nil {
-			return nil, err
-		}
-
-		valInfo2.ValidatorSet = vi2
-		valInfo = valInfo2
 	}
 
 	vip, err := types.ValidatorSetFromProto(valInfo.ValidatorSet)
@@ -584,6 +571,50 @@ func (store dbStore) LoadValidators(height int64) (*types.ValidatorSet, error) {
 	}
 
 	return vip, nil
+}
+
+// rebuildValidators returns the validator set at height by stepping the set stored at
+// lastStoredHeight forward. It resumes from the last set it rebuilt when that set comes from the
+// same stored set and is not past height, so consensus, which asks for consecutive heights, pays
+// one step per lookup instead of one per height since the stored set.
+func (store dbStore) rebuildValidators(lastStoredHeight, height int64) (*cmtproto.ValidatorSet, error) {
+	c := store.valSetCache
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	vs, from := c.valSet, c.height
+	if vs == nil || c.baseHeight != lastStoredHeight || c.height > height {
+		valInfo, err := loadValidatorsInfo(store.db, lastStoredHeight)
+		if err != nil || valInfo.ValidatorSet == nil {
+			return nil,
+				fmt.Errorf("couldn't find validators at height %d (height %d was originally requested): %w",
+					lastStoredHeight,
+					height,
+					err,
+				)
+		}
+		vs, err = types.ValidatorSetFromProto(valInfo.ValidatorSet)
+		if err != nil {
+			return nil, err
+		}
+		from = lastStoredHeight
+	}
+
+	// Step one height at a time, exactly as updateState does. IncrementProposerPriority(n)
+	// rescales once and then applies n raw increments, which only matches the live path while
+	// the priority spread stays within the rescale window. With a reduced proposer set the
+	// non-proposers accumulate priority without bound, the lossy rescale fires every height,
+	// and the batched result diverges from what every running node holds in state.
+	for h := from; h < height; h++ {
+		vs.IncrementProposerPriority(1) // mutate
+	}
+
+	// Lookups of older heights (RPC, evidence) must not displace the set consensus resumes from.
+	if lastStoredHeight > c.baseHeight || (lastStoredHeight == c.baseHeight && height >= c.height) {
+		c.baseHeight, c.height, c.valSet = lastStoredHeight, height, vs
+	}
+
+	return vs.ToProto()
 }
 
 func lastStoredHeightFor(height, lastHeightChanged int64) int64 {

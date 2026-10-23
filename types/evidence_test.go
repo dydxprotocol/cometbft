@@ -193,6 +193,7 @@ func TestLightClientAttackEvidenceValidation(t *testing.T) {
 		{"Height is equal to the divergent block", func(ev *LightClientAttackEvidence) {
 			ev.CommonHeight = height
 		}, false},
+		{"Nil conflicting signed header", func(ev *LightClientAttackEvidence) { ev.ConflictingBlock.SignedHeader = nil }, true},
 		{"Nil conflicting header", func(ev *LightClientAttackEvidence) { ev.ConflictingBlock.Header = nil }, true},
 		{"Nil conflicting blocl", func(ev *LightClientAttackEvidence) { ev.ConflictingBlock = nil }, true},
 		{"Nil validator set", func(ev *LightClientAttackEvidence) {
@@ -227,6 +228,26 @@ func TestLightClientAttackEvidenceValidation(t *testing.T) {
 		})
 	}
 
+}
+
+func TestLightClientAttackEvidenceFromProtoNilConflictingSignedHeader(t *testing.T) {
+	height := int64(5)
+	_, valSet, _ := randVoteSet(height, 1, cmtproto.PrecommitType, 10, 1, false)
+	valsProto, err := valSet.ToProto()
+	require.NoError(t, err)
+
+	evidenceProto := &cmtproto.LightClientAttackEvidence{
+		ConflictingBlock: &cmtproto.LightBlock{
+			ValidatorSet: valsProto,
+		},
+		CommonHeight:     height - 1,
+		TotalVotingPower: valSet.TotalVotingPower(),
+	}
+
+	require.NotPanics(t, func() {
+		_, err = LightClientAttackEvidenceFromProto(evidenceProto)
+	})
+	require.ErrorContains(t, err, "conflicting block missing signed header")
 }
 
 func TestMockEvidenceValidateBasic(t *testing.T) {

@@ -607,3 +607,35 @@ func TestBlockPoolHasPendingRequestFrom(t *testing.T) {
 	require.False(t, pool.HasPendingRequestFrom(primary))
 	require.False(t, pool.HasPendingRequestFrom(secondary))
 }
+
+// TestBlockPoolNotCaughtUpWithoutServablePeer covers the case where every peer
+// is pruned past pool.height: maxPeerHeight is 0 because no peer counts, which
+// must not read as being at the tip. Peers at genesis, which also report
+// height 0, still count and still let the pool catch up.
+func TestBlockPoolNotCaughtUpWithoutServablePeer(t *testing.T) {
+	requestsCh := make(chan BlockRequest, 10)
+	errorsCh := make(chan peerError, 10)
+
+	pool := NewBlockPool(1, requestsCh, errorsCh)
+	pool.SetLogger(log.TestingLogger())
+	pool.mtx.Lock()
+	pool.startTime = time.Now().Add(-time.Minute)
+	pool.mtx.Unlock()
+
+	pool.SetPeerRange(p2p.ID("A"), 100_000, 200_000)
+	pool.SetPeerRange(p2p.ID("B"), 150_000, 200_000)
+	require.EqualValues(t, 0, pool.MaxPeerHeight())
+	require.False(t, pool.IsCaughtUp(), "pruned peers cannot serve height 1, so the pool is stuck, not caught up")
+
+	pool.SetPeerRange(p2p.ID("C"), 1, 50)
+	require.EqualValues(t, 50, pool.MaxPeerHeight())
+	require.False(t, pool.IsCaughtUp(), "peer C has 49 more blocks to serve")
+
+	genesisPool := NewBlockPool(1, requestsCh, errorsCh)
+	genesisPool.SetLogger(log.TestingLogger())
+	genesisPool.mtx.Lock()
+	genesisPool.startTime = time.Now().Add(-time.Minute)
+	genesisPool.mtx.Unlock()
+	genesisPool.SetPeerRange(p2p.ID("A"), 0, 0)
+	require.True(t, genesisPool.IsCaughtUp(), "a peer at genesis can serve height 1 and reports nothing to sync")
+}

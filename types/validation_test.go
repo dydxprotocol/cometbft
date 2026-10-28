@@ -308,3 +308,62 @@ func TestValidatorSet_VerifyCommitLightTrustingErrorsOnOverflow(t *testing.T) {
 		assert.Contains(t, err.Error(), "int64 overflow")
 	}
 }
+
+func TestValidatorSet_VerifyExtendedCommit(t *testing.T) {
+	const chainID = "test_chain_id"
+	height, round := int64(5), int32(1)
+	blockID := makeBlockIDRandom()
+
+	fresh := func() (*ValidatorSet, *ExtendedCommit) {
+		voteSet, valSet, privVals := randVoteSet(height, round, cmtproto.PrecommitType, 4, 10, true)
+		extCommit, err := MakeExtCommit(blockID, height, round, voteSet, privVals, time.Now(), true)
+		require.NoError(t, err)
+		return valSet, extCommit
+	}
+
+	valSet, extCommit := fresh()
+	require.NoError(t, valSet.VerifyExtendedCommit(chainID, blockID, height, extCommit))
+	require.NotPanics(t, func() { extCommit.ToExtendedVoteSet(chainID, valSet) })
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(ec *ExtendedCommit)
+	}{
+		{"nil extended commit", nil},
+		{"tampered extension keeps both signatures", func(ec *ExtendedCommit) {
+			ec.ExtendedSignatures[0].Extension = []byte("not what was signed")
+		}},
+		{"tampered extension signature", func(ec *ExtendedCommit) {
+			ec.ExtendedSignatures[1].ExtensionSignature[0] ^= 0xff
+		}},
+		{"tampered precommit signature", func(ec *ExtendedCommit) {
+			ec.ExtendedSignatures[2].Signature[0] ^= 0xff
+		}},
+		{"wrong block ID", func(ec *ExtendedCommit) { ec.BlockID = makeBlockIDRandom() }},
+		{"wrong height", func(ec *ExtendedCommit) { ec.Height++ }},
+		{"missing signatures", func(ec *ExtendedCommit) {
+			ec.ExtendedSignatures = ec.ExtendedSignatures[:len(ec.ExtendedSignatures)-1]
+		}},
+		{"too few commit votes", func(ec *ExtendedCommit) {
+			for i := range ec.ExtendedSignatures[1:] {
+				ec.ExtendedSignatures[i+1] = NewExtendedCommitSigAbsent()
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			valSet, extCommit := fresh()
+			if tc.mutate == nil {
+				extCommit = nil
+			} else {
+				tc.mutate(extCommit)
+			}
+			require.Error(t, valSet.VerifyExtendedCommit(chainID, blockID, height, extCommit))
+		})
+	}
+
+	// The tampered extension from the table is exactly what a block-sync peer
+	// could hand us, and consensus panics on it when it rebuilds LastCommit.
+	valSet, extCommit = fresh()
+	extCommit.ExtendedSignatures[0].Extension = []byte("not what was signed")
+	require.Panics(t, func() { extCommit.ToExtendedVoteSet(chainID, valSet) })
+}

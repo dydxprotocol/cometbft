@@ -517,11 +517,6 @@ FOR_LOOP:
 				// Panicking because this is an obvious bug in the block pool, which is totally under our control
 				panic(fmt.Errorf("heights of first and second block are not consecutive; expected %d, got %d", state.LastBlockHeight, first.Height))
 			}
-			if extCommit == nil && state.ConsensusParams.ABCI.VoteExtensionsEnabled(first.Height) {
-				// See https://github.com/tendermint/tendermint/pull/8433#discussion_r866790631
-				panic(fmt.Errorf("peeked first block without extended commit at height %d - possible node store corruption", first.Height))
-			}
-
 			// Before priming didProcessCh for another check on the next
 			// iteration, break the loop if the BlockPool or the Reactor itself
 			// has quit. This avoids case ambiguity of the outer select when two
@@ -556,7 +551,14 @@ FOR_LOOP:
 			if err == nil {
 				// if vote extensions were required at this height, ensure they exist.
 				if state.ConsensusParams.ABCI.VoteExtensionsEnabled(first.Height) {
-					err = extCommit.EnsureExtensions(true)
+					// Consensus rebuilds LastCommit from the stored extended
+					// commit when block sync ends and panics if it does not
+					// verify, so a peer must not get an unverified or missing
+					// one persisted.
+					err = state.Validators.VerifyExtendedCommit(chainID, firstID, first.Height, extCommit)
+					if err == nil {
+						err = extCommit.EnsureExtensions(true)
+					}
 				} else {
 					if extCommit != nil {
 						err = fmt.Errorf("received non-nil extCommit for height %d (extensions disabled)", first.Height)

@@ -82,6 +82,7 @@ type BlockPool struct {
 	bannedPeers   map[p2p.ID]time.Time
 	sortedPeers   []*bpPeer // sorted by curRate, highest first
 	maxPeerHeight int64     // the biggest reported height
+	eligiblePeers int       // peers whose base is at or below pool.height
 
 	// atomic
 	numPending int32 // number of requests pending assignment or block response
@@ -229,6 +230,13 @@ func (pool *BlockPool) IsCaughtUp() bool {
 	// and that we're synced to the highest known height.
 	// Note we use maxPeerHeight - 1 because to sync block H requires block H+1
 	// to verify the LastCommit.
+	// A peer pruned past pool.height cannot serve the blocks we still need. When
+	// no peer can, maxPeerHeight is 0 for lack of a usable report, not because
+	// we are at the tip, so we are stuck rather than caught up.
+	if pool.eligiblePeers == 0 {
+		pool.Logger.Debug("Blockpool has no peer that can serve its height")
+		return false
+	}
 	receivedBlockOrTimedOut := pool.height > 0 || time.Since(pool.startTime) > 5*time.Second
 	ourChainIsLongestAmongPeers := pool.maxPeerHeight == 0 || pool.height >= (pool.maxPeerHeight-1)
 	isCaughtUp := receivedBlockOrTimedOut && ourChainIsLongestAmongPeers
@@ -467,6 +475,7 @@ func (pool *BlockPool) removePeer(peerID p2p.ID) {
 // updateMaxPeerHeight sets maxPeerHeight to the highest height among peers.
 func (pool *BlockPool) updateMaxPeerHeight() {
 	var max int64
+	eligible := 0
 	for _, peer := range pool.peers {
 		if pool.height > 0 && peer.base > pool.height {
 			// Blocks a malicious peer from poisoning maxPeerHeight with an
@@ -474,11 +483,13 @@ func (pool *BlockPool) updateMaxPeerHeight() {
 			// would stall IsCaughtUp forever.
 			continue
 		}
+		eligible++
 		if peer.height > max {
 			max = peer.height
 		}
 	}
 	pool.maxPeerHeight = max
+	pool.eligiblePeers = eligible
 }
 
 // IsPeerBanned returns true if the peer is banned.

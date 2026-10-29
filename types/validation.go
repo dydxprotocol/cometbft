@@ -8,6 +8,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/batch"
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 )
 
 const batchVerifyThreshold = 2
@@ -430,5 +431,50 @@ func verifyBasicValsAndCommit(vals *ValidatorSet, commit *Commit, height int64, 
 			blockID, commit.BlockID)
 	}
 
+	return nil
+}
+
+// VerifyExtendedCommit verifies that extCommit is a valid extended commit for
+// blockID at height from vals: every non-absent precommit signature and vote
+// extension signature verifies, and the commit votes carry +2/3 of the voting
+// power. Consensus rebuilds LastCommit from a stored extended commit with
+// ToExtendedVoteSet, which panics on the same defects, so an extended commit
+// received from a peer must pass here before it is persisted.
+func (vals *ValidatorSet) VerifyExtendedCommit(
+	chainID string, blockID BlockID, height int64, extCommit *ExtendedCommit,
+) error {
+	if extCommit == nil {
+		return errors.New("nil extended commit")
+	}
+	if extCommit.Height != height {
+		return fmt.Errorf("invalid extended commit -- wrong height: want %d, got %d", height, extCommit.Height)
+	}
+	if !blockID.Equals(extCommit.BlockID) {
+		return fmt.Errorf("invalid extended commit -- wrong block ID: want %v, got %v", blockID, extCommit.BlockID)
+	}
+	if vals.Size() != len(extCommit.ExtendedSignatures) {
+		return fmt.Errorf("invalid extended commit -- wrong set size: %d vs %d", vals.Size(), len(extCommit.ExtendedSignatures))
+	}
+
+	voteSet := NewExtendedVoteSet(chainID, extCommit.Height, extCommit.Round, cmtproto.PrecommitType, vals)
+	for idx, ecs := range extCommit.ExtendedSignatures {
+		if ecs.BlockIDFlag == BlockIDFlagAbsent {
+			continue
+		}
+		vote := extCommit.GetExtendedVote(int32(idx))
+		if err := vote.ValidateBasic(); err != nil {
+			return fmt.Errorf("invalid extended commit -- vote at index %d: %w", idx, err)
+		}
+		added, err := voteSet.AddVote(vote)
+		if err != nil {
+			return fmt.Errorf("invalid extended commit -- vote at index %d: %w", idx, err)
+		}
+		if !added {
+			return fmt.Errorf("invalid extended commit -- vote at index %d was not added", idx)
+		}
+	}
+	if maj23, ok := voteSet.TwoThirdsMajority(); !ok || !maj23.Equals(blockID) {
+		return errors.New("invalid extended commit -- no +2/3 of the voting power for the block")
+	}
 	return nil
 }
